@@ -1,0 +1,701 @@
+{
+  "ambient": {
+    "ambient_dyno_drive_basic_long": {
+      "frames": 2991272,
+      "seconds": 1250.9,
+      "fps": 2391,
+      "ids": 106,
+      "on_dyno": true,
+      "dlc_not_8": 0,
+      "all_ff_frames": 0
+    },
+    "ambient_dyno_drive_basic_short": {
+      "frames": 1063624,
+      "seconds": 444.8,
+      "fps": 2392,
+      "ids": 106,
+      "on_dyno": true,
+      "dlc_not_8": 0,
+      "all_ff_frames": 0
+    },
+    "ambient_dyno_drive_benign_anomaly": {
+      "frames": 771519,
+      "seconds": 456.5,
+      "fps": 1690,
+      "ids": 106,
+      "on_dyno": true,
+      "dlc_not_8": 0,
+      "all_ff_frames": 0
+    },
+    "ambient_dyno_drive_extended_long": {
+      "frames": 1424208,
+      "seconds": 657.9,
+      "fps": 2165,
+      "ids": 106,
+      "on_dyno": true,
+      "dlc_not_8": 0,
+      "all_ff_frames": 0
+    },
+    "ambient_dyno_drive_extended_short": {
+      "frames": 790442,
+      "seconds": 359.8,
+      "fps": 2197,
+      "ids": 106,
+      "on_dyno": true,
+      "dlc_not_8": 0,
+      "all_ff_frames": 0
+    },
+    "ambient_dyno_drive_radio_infotainment": {
+      "frames": 932852,
+      "seconds": 390.5,
+      "fps": 2389,
+      "ids": 106,
+      "on_dyno": true,
+      "dlc_not_8": 0,
+      "all_ff_frames": 0
+    },
+    "ambient_dyno_drive_winter": {
+      "frames": 114148,
+      "seconds": 47.7,
+      "fps": 2392,
+      "ids": 106,
+      "on_dyno": true,
+      "dlc_not_8": 0,
+      "all_ff_frames": 0
+    },
+    "ambient_dyno_exercise_all_bits": {
+      "frames": 4419422,
+      "seconds": 2172.8,
+      "fps": 2034,
+      "ids": 106,
+      "on_dyno": true,
+      "dlc_not_8": 0,
+      "all_ff_frames": 0
+    },
+    "ambient_dyno_idle_radio_infotainment": {
+      "frames": 1572318,
+      "seconds": 660.8,
+      "fps": 2379,
+      "ids": 106,
+      "on_dyno": true,
+      "dlc_not_8": 0,
+      "all_ff_frames": 0
+    },
+    "ambient_dyno_reverse": {
+      "frames": 123047,
+      "seconds": 51.4,
+      "fps": 2392,
+      "ids": 106,
+      "on_dyno": true,
+      "dlc_not_8": 0,
+      "all_ff_frames": 0
+    },
+    "ambient_highway_street_driving_diagnostics": {
+      "frames": 1124751,
+      "seconds": 469.9,
+      "fps": 2393,
+      "ids": 106,
+      "on_dyno": false,
+      "dlc_not_8": 0,
+      "all_ff_frames": 0
+    },
+    "ambient_highway_street_driving_long": {
+      "frames": 8821916,
+      "seconds": 3764.3,
+      "fps": 2344,
+      "ids": 106,
+      "on_dyno": false,
+      "dlc_not_8": 0,
+      "all_ff_frames": 0
+    }
+  },
+  "attacks": {
+    "correlated_signal_attack_1": {
+      "family": "correlated_signal",
+      "masquerade": false,
+      "frames": 81262,
+      "attack_frames": 2087,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0x6e0",
+      "payload": "595945450000FFFF",
+      "interval_s": [
+        9.192,
+        30.05
+      ],
+      "payload_matches_outside_interval": 0,
+      "target_frames_in_interval": 4173
+    },
+    "correlated_signal_attack_1_masquerade": {
+      "family": "correlated_signal",
+      "masquerade": true,
+      "frames": 79176,
+      "attack_frames": 2087,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0x6e0",
+      "payload": "595945450000FFFF",
+      "interval_s": [
+        9.192,
+        30.05
+      ],
+      "payload_matches_outside_interval": 0,
+      "target_frames_in_interval": 2087
+    },
+    "correlated_signal_attack_2": {
+      "family": "correlated_signal",
+      "masquerade": false,
+      "frames": 69657,
+      "attack_frames": 2141,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0x6e0",
+      "payload": "595945450000FFFF",
+      "interval_s": [
+        6.83,
+        28.226
+      ],
+      "payload_matches_outside_interval": 0,
+      "target_frames_in_interval": 4281
+    },
+    "correlated_signal_attack_2_masquerade": {
+      "family": "correlated_signal",
+      "masquerade": true,
+      "frames": 67517,
+      "attack_frames": 2141,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0x6e0",
+      "payload": "595945450000FFFF",
+      "interval_s": [
+        6.83,
+        28.226
+      ],
+      "payload_matches_outside_interval": 0,
+      "target_frames_in_interval": 2141
+    },
+    "correlated_signal_attack_3": {
+      "family": "correlated_signal",
+      "masquerade": false,
+      "frames": 41829,
+      "attack_frames": 1265,
+      "ids": 105,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0x6e0",
+      "payload": "595945450000FFFF",
+      "interval_s": [
+        4.318,
+        16.957
+      ],
+      "payload_matches_outside_interval": 0,
+      "target_frames_in_interval": 2529
+    },
+    "correlated_signal_attack_3_masquerade": {
+      "family": "correlated_signal",
+      "masquerade": true,
+      "frames": 40565,
+      "attack_frames": 1265,
+      "ids": 105,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0x6e0",
+      "payload": "595945450000FFFF",
+      "interval_s": [
+        4.318,
+        16.957
+      ],
+      "payload_matches_outside_interval": 0,
+      "target_frames_in_interval": 1265
+    },
+    "fuzzing_attack_1": {
+      "family": "fuzzing",
+      "masquerade": false,
+      "frames": 49342,
+      "attack_frames": 592,
+      "ids": 662,
+      "ids_not_in_ambient": 556,
+      "injection_id": "XXX",
+      "payload": "FFFFFFFFFFFFFFFF",
+      "interval_s": [
+        4.623,
+        7.958
+      ],
+      "payload_matches_outside_interval": 0
+    },
+    "fuzzing_attack_2": {
+      "family": "fuzzing",
+      "masquerade": false,
+      "frames": 32351,
+      "attack_frames": 352,
+      "ids": 443,
+      "ids_not_in_ambient": 337,
+      "injection_id": "XXX",
+      "payload": "FFFFFFFFFFFFFFFF",
+      "interval_s": [
+        11.368,
+        13.347
+      ],
+      "payload_matches_outside_interval": 1
+    },
+    "fuzzing_attack_3": {
+      "family": "fuzzing",
+      "masquerade": false,
+      "frames": 13238,
+      "attack_frames": 115,
+      "ids": 217,
+      "ids_not_in_ambient": 112,
+      "injection_id": "XXX",
+      "payload": "FFFFFFFFFFFFFFFF",
+      "interval_s": [
+        4.824,
+        5.471
+      ],
+      "payload_matches_outside_interval": 1
+    },
+    "max_engine_coolant_temp_attack": {
+      "family": "max_engine_coolant_temp",
+      "masquerade": false,
+      "frames": 61923,
+      "attack_frames": 43,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0x4e7",
+      "payload": "XXXXXXXXXXFFXXXX",
+      "interval_s": [
+        19.979,
+        24.17
+      ],
+      "payload_matches_outside_interval": 0,
+      "target_frames_in_interval": 85
+    },
+    "max_engine_coolant_temp_attack_masquerade": {
+      "family": "max_engine_coolant_temp",
+      "masquerade": true,
+      "frames": 61881,
+      "attack_frames": 43,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0x4e7",
+      "payload": "XXXXXXXXXXFFXXXX",
+      "interval_s": [
+        19.979,
+        24.17
+      ],
+      "payload_matches_outside_interval": 0,
+      "target_frames_in_interval": 43
+    },
+    "max_speedometer_attack_1": {
+      "family": "max_speedometer",
+      "masquerade": false,
+      "frames": 213397,
+      "attack_frames": 2445,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXXXXXXXXFFXXXX",
+      "interval_s": [
+        42.009,
+        66.449
+      ],
+      "payload_matches_outside_interval": 0,
+      "target_frames_in_interval": 4889
+    },
+    "max_speedometer_attack_1_masquerade": {
+      "family": "max_speedometer",
+      "masquerade": true,
+      "frames": 210953,
+      "attack_frames": 2445,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXXXXXXXXFFXXXX",
+      "interval_s": [
+        42.009,
+        66.449
+      ],
+      "payload_matches_outside_interval": 0,
+      "target_frames_in_interval": 2445
+    },
+    "max_speedometer_attack_2": {
+      "family": "max_speedometer",
+      "masquerade": false,
+      "frames": 145894,
+      "attack_frames": 3141,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXXXXXXXXFFXXXX",
+      "interval_s": [
+        16.009,
+        47.408
+      ],
+      "payload_matches_outside_interval": 0,
+      "target_frames_in_interval": 6281
+    },
+    "max_speedometer_attack_2_masquerade": {
+      "family": "max_speedometer",
+      "masquerade": true,
+      "frames": 142754,
+      "attack_frames": 3141,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXXXXXXXXFFXXXX",
+      "interval_s": [
+        16.009,
+        47.408
+      ],
+      "payload_matches_outside_interval": 0,
+      "target_frames_in_interval": 3141
+    },
+    "max_speedometer_attack_3": {
+      "family": "max_speedometer",
+      "masquerade": false,
+      "frames": 213551,
+      "attack_frames": 6108,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXXXXXXXXFFXXXX",
+      "interval_s": [
+        9.516,
+        70.587
+      ],
+      "payload_matches_outside_interval": 0,
+      "target_frames_in_interval": 12215
+    },
+    "max_speedometer_attack_3_masquerade": {
+      "family": "max_speedometer",
+      "masquerade": true,
+      "frames": 207444,
+      "attack_frames": 6108,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXXXXXXXXFFXXXX",
+      "interval_s": [
+        9.516,
+        70.587
+      ],
+      "payload_matches_outside_interval": 0,
+      "target_frames_in_interval": 6108
+    },
+    "reverse_light_off_attack_1": {
+      "family": "reverse_light_off",
+      "masquerade": false,
+      "frames": 67902,
+      "attack_frames": 673,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXX04XXXXXXXXXX",
+      "interval_s": [
+        16.628,
+        23.347
+      ],
+      "payload_matches_outside_interval": 330,
+      "target_frames_in_interval": 1345
+    },
+    "reverse_light_off_attack_1_masquerade": {
+      "family": "reverse_light_off",
+      "masquerade": true,
+      "frames": 67230,
+      "attack_frames": 673,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXX04XXXXXXXXXX",
+      "interval_s": [
+        16.628,
+        23.347
+      ],
+      "payload_matches_outside_interval": 330,
+      "target_frames_in_interval": 673
+    },
+    "reverse_light_off_attack_2": {
+      "family": "reverse_light_off",
+      "masquerade": false,
+      "frames": 99628,
+      "attack_frames": 2372,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXX04XXXXXXXXXX",
+      "interval_s": [
+        13.169,
+        36.877
+      ],
+      "payload_matches_outside_interval": 367,
+      "target_frames_in_interval": 4743
+    },
+    "reverse_light_off_attack_2_masquerade": {
+      "family": "reverse_light_off",
+      "masquerade": true,
+      "frames": 97257,
+      "attack_frames": 2372,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXX04XXXXXXXXXX",
+      "interval_s": [
+        13.169,
+        36.877
+      ],
+      "payload_matches_outside_interval": 367,
+      "target_frames_in_interval": 2372
+    },
+    "reverse_light_off_attack_3": {
+      "family": "reverse_light_off",
+      "masquerade": false,
+      "frames": 140855,
+      "attack_frames": 2435,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXX04XXXXXXXXXX",
+      "interval_s": [
+        16.524,
+        40.862
+      ],
+      "payload_matches_outside_interval": 788,
+      "target_frames_in_interval": 4869
+    },
+    "reverse_light_off_attack_3_masquerade": {
+      "family": "reverse_light_off",
+      "masquerade": true,
+      "frames": 138421,
+      "attack_frames": 2435,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXX04XXXXXXXXXX",
+      "interval_s": [
+        16.524,
+        40.862
+      ],
+      "payload_matches_outside_interval": 788,
+      "target_frames_in_interval": 2435
+    },
+    "reverse_light_on_attack_1": {
+      "family": "reverse_light_on",
+      "masquerade": false,
+      "frames": 133237,
+      "attack_frames": 1992,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXX0CXXXXXXXXXX",
+      "interval_s": [
+        18.929,
+        38.836
+      ],
+      "payload_matches_outside_interval": 12,
+      "target_frames_in_interval": 3983
+    },
+    "reverse_light_on_attack_1_masquerade": {
+      "family": "reverse_light_on",
+      "masquerade": true,
+      "frames": 131246,
+      "attack_frames": 1992,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXX0CXXXXXXXXXX",
+      "interval_s": [
+        18.929,
+        38.836
+      ],
+      "payload_matches_outside_interval": 12,
+      "target_frames_in_interval": 1992
+    },
+    "reverse_light_on_attack_2": {
+      "family": "reverse_light_on",
+      "masquerade": false,
+      "frames": 175945,
+      "attack_frames": 3690,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXX0CXXXXXXXXXX",
+      "interval_s": [
+        20.407,
+        57.297
+      ],
+      "payload_matches_outside_interval": 12,
+      "target_frames_in_interval": 7379
+    },
+    "reverse_light_on_attack_2_masquerade": {
+      "family": "reverse_light_on",
+      "masquerade": true,
+      "frames": 172256,
+      "attack_frames": 3690,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXX0CXXXXXXXXXX",
+      "interval_s": [
+        20.407,
+        57.297
+      ],
+      "payload_matches_outside_interval": 12,
+      "target_frames_in_interval": 3690
+    },
+    "reverse_light_on_attack_3": {
+      "family": "reverse_light_on",
+      "masquerade": false,
+      "frames": 156052,
+      "attack_frames": 2352,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXX0CXXXXXXXXXX",
+      "interval_s": [
+        23.07,
+        46.581
+      ],
+      "payload_matches_outside_interval": 12,
+      "target_frames_in_interval": 4703
+    },
+    "reverse_light_on_attack_3_masquerade": {
+      "family": "reverse_light_on",
+      "masquerade": true,
+      "frames": 153701,
+      "attack_frames": 2352,
+      "ids": 106,
+      "ids_not_in_ambient": 0,
+      "injection_id": "0xd0",
+      "payload": "XXXX0CXXXXXXXXXX",
+      "interval_s": [
+        23.07,
+        46.581
+      ],
+      "payload_matches_outside_interval": 12,
+      "target_frames_in_interval": 2352
+    }
+  },
+  "skipped": [
+    {
+      "capture": "accelerator_attack_drive_1",
+      "reason": "no injected frames (accelerator attack)"
+    },
+    {
+      "capture": "accelerator_attack_drive_2",
+      "reason": "no injected frames (accelerator attack)"
+    },
+    {
+      "capture": "accelerator_attack_reverse_1",
+      "reason": "no injected frames (accelerator attack)"
+    },
+    {
+      "capture": "accelerator_attack_reverse_2",
+      "reason": "no injected frames (accelerator attack)"
+    }
+  ],
+  "ambient_ids": [
+    6,
+    14,
+    37,
+    51,
+    58,
+    60,
+    61,
+    65,
+    117,
+    167,
+    186,
+    192,
+    204,
+    208,
+    215,
+    241,
+    244,
+    248,
+    253,
+    263,
+    293,
+    300,
+    304,
+    339,
+    354,
+    403,
+    412,
+    420,
+    426,
+    452,
+    458,
+    470,
+    485,
+    519,
+    526,
+    541,
+    560,
+    569,
+    622,
+    627,
+    628,
+    631,
+    640,
+    651,
+    661,
+    663,
+    675,
+    676,
+    683,
+    692,
+    695,
+    705,
+    722,
+    727,
+    737,
+    738,
+    778,
+    813,
+    837,
+    852,
+    870,
+    881,
+    930,
+    953,
+    961,
+    996,
+    1031,
+    1049,
+    1072,
+    1076,
+    1124,
+    1175,
+    1176,
+    1225,
+    1227,
+    1255,
+    1262,
+    1277,
+    1307,
+    1314,
+    1331,
+    1372,
+    1398,
+    1399,
+    1408,
+    1413,
+    1455,
+    1459,
+    1505,
+    1512,
+    1533,
+    1560,
+    1590,
+    1621,
+    1628,
+    1634,
+    1644,
+    1649,
+    1661,
+    1668,
+    1693,
+    1694,
+    1751,
+    1760,
+    1788,
+    4095
+  ]
+}

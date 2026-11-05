@@ -1,0 +1,82 @@
+{
+  "files": [
+    "decimal_DoS.csv",
+    "decimal_benign.csv",
+    "decimal_spoofing-GAS.csv",
+    "decimal_spoofing-RPM.csv",
+    "decimal_spoofing-SPEED.csv",
+    "decimal_spoofing-STEERING_WHEEL.csv"
+  ],
+  "deduplicated": true,
+  "dropped_conflicts": false,
+  "rows_raw": 1408219,
+  "rows_unique": 3588,
+  "per_class": {
+    "benign": {
+      "raw": 1223737,
+      "unique": 3547,
+      "unique_pct": 0.29
+    },
+    "dos": {
+      "raw": 74663,
+      "unique": 21,
+      "unique_pct": 0.03
+    },
+    "spoof_gas": {
+      "raw": 9991,
+      "unique": 2,
+      "unique_pct": 0.02
+    },
+    "spoof_rpm": {
+      "raw": 54900,
+      "unique": 10,
+      "unique_pct": 0.02
+    },
+    "spoof_speed": {
+      "raw": 24951,
+      "unique": 5,
+      "unique_pct": 0.02
+    },
+    "spoof_steering": {
+      "raw": 19977,
+      "unique": 3,
+      "unique_pct": 0.02
+    }
+  },
+  "memorised_classes": [
+    "spoof_gas",
+    "spoof_speed",
+    "spoof_steering"
+  ],
+  "label_conflicts": {
+    "feature_vectors": 0,
+    "class_combinations": {}
+  },
+  "split_sizes": {
+    "train": {
+      "benign": 2482,
+      "dos": 15,
+      "spoof_gas": 2,
+      "spoof_rpm": 7,
+      "spoof_speed": 5,
+      "spoof_steering": 3
+    },
+    "val": {
+      "benign": 355,
+      "dos": 2,
+      "spoof_gas": 2,
+      "spoof_rpm": 1,
+      "spoof_speed": 5,
+      "spoof_steering": 3
+    },
+    "test": {
+      "benign": 710,
+      "dos": 4,
+      "spoof_gas": 2,
+      "spoof_rpm": 2,
+      "spoof_speed": 5,
+      "spoof_steering": 3
+    }
+  },
+  "output_dir": "data/processed"
+}
