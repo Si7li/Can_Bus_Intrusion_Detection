@@ -84,14 +84,27 @@ def add_gaps(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def novelty(df: pd.DataFrame, profile: dict) -> np.ndarray:
-    """(n, 8) bool: byte value never seen for this ID in normal training traffic."""
+    """(n, 8) bool: byte value not normal for this ID, using the check chosen per
+    byte in the profile (1 = never seen exactly, 2 = outside the seen range + margin,
+    0 = byte ignored because new values are common in normal driving)."""
     ids = sorted(profile["seen"])
-    seen = np.zeros((len(ids) + 1, 8, 256), bool)      # last row = unknown ID -> nothing seen
+    n_ids = len(ids)
+    seen = np.zeros((n_ids + 1, 8, 256), bool)       # last row = unknown ID
+    mode = np.zeros((n_ids + 1, 8), np.int8)
+    lo = np.zeros((n_ids + 1, 8), np.int16)
+    hi = np.full((n_ids + 1, 8), 255, np.int16)
     for i, aid in enumerate(ids):
         for j, h in enumerate(profile["seen"][aid]):
             seen[i, j] = np.unpackbits(np.frombuffer(bytes.fromhex(h), dtype=np.uint8)).astype(bool)
-    idx = df["id"].map({a: i for i, a in enumerate(ids)}).fillna(len(ids)).astype(int).to_numpy()
-    return np.stack([~seen[idx, j, df[b].to_numpy()] for j, b in enumerate(BYTES)], axis=1)
+        mode[i] = profile["novelty_mode"][aid]
+        lo[i], hi[i] = profile["ids"][aid]["range_lo"], profile["ids"][aid]["range_hi"]
+    idx = df["id"].map({a: i for i, a in enumerate(ids)}).fillna(n_ids).astype(int).to_numpy()
+    out = np.zeros((len(df), 8), bool)
+    for j, b in enumerate(BYTES):
+        v = df[b].to_numpy().astype(np.int16)
+        m = mode[idx, j]
+        out[:, j] = ((m == 1) & ~seen[idx, j, v]) | ((m == 2) & ((v < lo[idx, j]) | (v > hi[idx, j])))
+    return out
 
 
 def context_surprise(df: pd.DataFrame, profile: dict, per_pair: bool = False):
@@ -170,3 +183,25 @@ def training_frames(profile: dict, n_benign: int, seed: int) -> pd.DataFrame:
     benign = np.flatnonzero(lab == 0)
     benign = rng.choice(benign, size=min(n_benign, len(benign)), replace=False)
     return train.iloc[np.sort(np.concatenate([np.flatnonzero(lab == 1), benign]))]
+
+
+def training_features(sel: pd.DataFrame, profile: dict, folds: list[dict], fold_captures: list[list[str]]):
+    """Out-of-fold features for training: normal frames from the ambient drives of
+    fold i are scored with the profile learned on the OTHER fold; frames from the
+    attack recordings (never used to build any profile) use the full profile."""
+    cap = sel["capture"].astype(str).to_numpy()
+    parts = {}
+    for i in range(2):
+        m = np.isin(cap, fold_captures[i])
+        if m.any():
+            parts[i] = (m, folds[1 - i])
+    rest = ~np.logical_or.reduce([m for m, _ in parts.values()]) if parts else np.ones(len(sel), bool)
+    x, cols = None, None
+    for m, prof in list(parts.values()) + [(rest, profile)]:
+        if not m.any():
+            continue
+        xi, cols = make_features(sel[m], prof)
+        if x is None:
+            x = np.zeros((len(sel), xi.shape[1]), np.float32)
+        x[m] = xi
+    return x, cols

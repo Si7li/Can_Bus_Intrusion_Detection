@@ -1,0 +1,65 @@
+{
+  "per_attack": {
+    "correlated_signal / fabrication": {
+      "attack_frames": 2141,
+      "recall": 0.9981,
+      "captures_detected": "1/1",
+      "median_delay_ms": 41.1
+    },
+    "correlated_signal / masquerade": {
+      "attack_frames": 2141,
+      "recall": 0.9981,
+      "captures_detected": "1/1",
+      "median_delay_ms": 41.1
+    },
+    "fuzzing / fabrication": {
+      "attack_frames": 352,
+      "recall": 0.9574,
+      "captures_detected": "1/1",
+      "median_delay_ms": 0.0
+    },
+    "max_speedometer / fabrication": {
+      "attack_frames": 3141,
+      "recall": 0.9987,
+      "captures_detected": "1/1",
+      "median_delay_ms": 40.6
+    },
+    "max_speedometer / masquerade": {
+      "attack_frames": 3141,
+      "recall": 0.9987,
+      "captures_detected": "1/1",
+      "median_delay_ms": 40.6
+    },
+    "reverse_light_off / fabrication": {
+      "attack_frames": 2372,
+      "recall": 0.9983,
+      "captures_detected": "1/1",
+      "median_delay_ms": 38.9
+    },
+    "reverse_light_off / masquerade": {
+      "attack_frames": 2372,
+      "recall": 0.9983,
+      "captures_detected": "1/1",
+      "median_delay_ms": 38.9
+    },
+    "reverse_light_on / fabrication": {
+      "attack_frames": 3690,
+      "recall": 0.9989,
+      "captures_detected": "1/1",
+      "median_delay_ms": 40.0
+    },
+    "reverse_light_on / masquerade": {
+      "attack_frames": 3690,
+      "recall": 0.9989,
+      "captures_detected": "1/1",
+      "median_delay_ms": 40.0
+    }
+  },
+  "recall_all_attacks": 0.998,
+  "fpr": 0.004318825173024876,
+  "fpr_clean_drives": 0.00019381486850183428,
+  "benign_flagged_in_attack_captures": 11342,
+  "false_alarms_per_min_ambient": 26.71,
+  "ambient_minutes": 12.5,
+  "benign_frames": 2703513
+}

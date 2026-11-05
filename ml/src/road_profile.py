@@ -13,7 +13,9 @@ surprising frame/min) on the other half.
 1. whitelist        : the IDs seen in normal traffic
 2. timing           : per ID, nominal period and shortest normal gap (rate rule)
 3. seen values      : per ID and byte position, which of the 256 values ever
-                      occur (256-bit mask; 106 IDs x 8 bytes x 32 B = 27 KB)
+                      occur (256-bit mask; 106 IDs x 8 bytes x 32 B = 27 KB),
+                      the min..max range, and which check is reliable for that
+                      byte (exact set / range / none), cross-validated like the pairs
 4. signal pairs     : for each state-like byte (2..16 distinct values: gear,
                       lights, flags...), the byte of ANOTHER ID that predicts it
                       best, and the table P(value | partner value). A frame whose
@@ -187,6 +189,52 @@ def select_pairs(amb: pd.DataFrame, states: pd.DataFrame, candidates: dict) -> l
     return kept
 
 
+MAX_NOVEL_PER_MIN = 1.0
+RANGE_MARGIN = 0.5      # range check flags values beyond min/max by > 50% of the range width
+
+
+def range_bounds(lo: int, hi: int) -> tuple[int, int]:
+    """Seen range widened by a margin: new drives go a little beyond the training
+    range (e.g. a higher speed), attacks typically go far beyond it (0xFF)."""
+    m = max(4, int(RANGE_MARGIN * (hi - lo)))
+    return lo - m, hi + m
+
+
+def novelty_modes(amb: pd.DataFrame) -> dict:
+    """Per ID and byte, the strictest 'never seen' check that stays quiet on drives
+    it was not learned from: 1 = exact set of seen values, 2 = outside the seen
+    min..max range widened by a margin (see range_bounds), 0 = neither (byte ignored, e.g. values that change from drive
+    to drive). Cross-validated on the two halves of the training drives."""
+    fold_amb = [amb[amb["capture"].isin(f)] for f in FOLDS]
+    minutes = [sum(g["t"].iloc[-1] - g["t"].iloc[0] for _, g in a.groupby("capture", observed=True)) / 60
+               for a in fold_amb]
+    stats = []   # per fold: {(id, byte): (set of values, min, max)}
+    for a in fold_amb:
+        d = {}
+        for aid, g in a.groupby("id", observed=True):
+            for b in BYTES:
+                v = g[b].to_numpy()
+                d[(int(aid), b)] = (np.unique(v), int(v.min()), int(v.max()))
+        stats.append(d)
+    modes = {}
+    for aid in sorted(amb["id"].unique().tolist()):
+        row = []
+        for b in BYTES:
+            set_ok = range_ok = True
+            for i, j in [(0, 1), (1, 0)]:
+                if (aid, b) not in stats[i]:
+                    set_ok = range_ok = False
+                    continue
+                vals, lo, hi = stats[i][(aid, b)]
+                other = fold_amb[j].loc[fold_amb[j]["id"] == aid, b].to_numpy().astype(np.int16)
+                set_ok &= (~np.isin(other, vals)).sum() / minutes[j] <= MAX_NOVEL_PER_MIN
+                lo_x, hi_x = range_bounds(lo, hi)
+                range_ok &= ((other < lo_x) | (other > hi_x)).sum() / minutes[j] <= MAX_NOVEL_PER_MIN
+            row.append(1 if set_ok else 2 if range_ok else 0)
+        modes[int(aid)] = row
+    return modes
+
+
 def build_profile() -> dict:
     t0 = time.perf_counter()
     train = load_split("train")
@@ -201,6 +249,11 @@ def build_profile() -> dict:
         ids[aid] = {"period": float(np.median(gaps)), "gap_q001": float(np.quantile(gaps, 0.001)),
                     "frames": int(len(g))}
         masks = []
+        ids[aid]["min"] = [int(g[b].min()) for b in BYTES]
+        ids[aid]["max"] = [int(g[b].max()) for b in BYTES]
+        bounds = [range_bounds(lo, hi) for lo, hi in zip(ids[aid]["min"], ids[aid]["max"])]
+        ids[aid]["range_lo"] = [b[0] for b in bounds]
+        ids[aid]["range_hi"] = [b[1] for b in bounds]
         for b in BYTES:
             vals = np.unique(g[b].to_numpy())
             mask = np.zeros(256, bool)
@@ -210,10 +263,65 @@ def build_profile() -> dict:
                 candidates[(aid, b)] = vals.tolist()
         seen[aid] = masks
     print(f"  {len(ids)} IDs, {len(candidates)} state-like bytes; searching signal pairs...", flush=True)
+    modes = novelty_modes(amb)
+    flat = [m for row in modes.values() for m in row]
+    print(f"  novelty check per byte: exact set {flat.count(1)}, range {flat.count(2)}, "
+          f"ignored {flat.count(0)} (of {len(flat)})", flush=True)
     states = build_states(amb, candidates)
     pairs = select_pairs(amb, states, candidates)
     print(f"  done in {time.perf_counter() - t0:.0f} s")
-    return {"ids": ids, "seen": seen, "pairs": pairs}
+    return {"ids": ids, "seen": seen, "novelty_mode": modes, "pairs": pairs}
+
+
+def fold_profile(amb_subset: pd.DataFrame, base: dict) -> dict:
+    """Same structure as the full profile (same checks, same signal pairs) but the
+    value tables are learned from a subset of the training drives only.
+
+    Used for out-of-fold training features: normal training frames are scored
+    against a profile that did NOT see them, so the model learns that normal
+    driving sometimes produces new values (otherwise new values would be 0 for
+    every normal training frame and the model would treat any new value as an attack)."""
+    ids = {a: dict(v) for a, v in base["ids"].items()}
+    seen = dict(base["seen"])
+    for aid, g in amb_subset.groupby("id", observed=True):
+        aid = int(aid)
+        lo = [int(g[b].min()) for b in BYTES]
+        hi = [int(g[b].max()) for b in BYTES]
+        bounds = [range_bounds(a, b) for a, b in zip(lo, hi)]
+        ids[aid].update(min=lo, max=hi, range_lo=[b[0] for b in bounds], range_hi=[b[1] for b in bounds])
+        masks = []
+        for b in BYTES:
+            mask = np.zeros(256, bool)
+            mask[np.unique(g[b].to_numpy())] = True
+            masks.append(np.packbits(mask).tobytes().hex())
+        seen[aid] = masks
+    keys = [(p["id"], f"b{p['byte']}", p["partner_id"], f"b{p['partner_byte']}") for p in base["pairs"]]
+    cands = {(k[0], k[1]): None for k in keys} | {(k[2], k[3]): None for k in keys}
+    states = build_states(amb_subset, cands)
+    pairs = [fit_table(states, k) for k in keys]
+    return {"ids": ids, "seen": seen, "novelty_mode": base["novelty_mode"], "pairs": pairs}
+
+
+def fold_profiles(base: dict) -> list[dict]:
+    """[profile learned on FOLDS[0], profile learned on FOLDS[1]], cached."""
+    out = []
+    train = None
+    for i in range(2):
+        path = RESULTS_DIR / f"road_profile_fold{i + 1}.json"
+        if path.exists() and path.stat().st_mtime >= PROFILE_PATH.stat().st_mtime:
+            p = json.loads(path.read_text())
+        else:
+            if train is None:
+                train = load_split("train")
+                train = train[train["variant"] == "ambient"]
+            p = fold_profile(train[train["capture"].isin(FOLDS[i])], base)
+            path.write_text(json.dumps(p))
+            p = json.loads(path.read_text())
+        p["ids"] = {int(k): v for k, v in p["ids"].items()}
+        p["seen"] = {int(k): v for k, v in p["seen"].items()}
+        p["novelty_mode"] = {int(k): v for k, v in p["novelty_mode"].items()}
+        out.append(p)
+    return out
 
 
 def save_profile(profile: dict):
@@ -225,13 +333,14 @@ def load_profile() -> dict:
     p = json.loads(PROFILE_PATH.read_text())
     p["ids"] = {int(k): v for k, v in p["ids"].items()}
     p["seen"] = {int(k): v for k, v in p["seen"].items()}
+    p["novelty_mode"] = {int(k): v for k, v in p.get("novelty_mode", {}).items()}
     return p
 
 
 def get_profile(rebuild: bool = False) -> dict:
     if PROFILE_PATH.exists() and not rebuild:
         p = load_profile()
-        if "pairs" in p:
+        if "pairs" in p and p["novelty_mode"]:
             return p
     print("Building normal-traffic profile from the training ambient captures...", flush=True)
     p = build_profile()

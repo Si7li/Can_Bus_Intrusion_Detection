@@ -9,6 +9,7 @@ attack type comes from the explanation step, not from the model).
 
 Protocol:
 1. Train on the 'train' split (same frames as the RF), early stopping on 'val'.
+   Training features are out-of-fold (see road_features.training_features).
 2. Post-training full-int8 quantization (TFLite), calibrated on training frames.
 3. On 'val': choose the alert threshold = highest masquerade recall with at most
    MAX_FA_PER_MIN false alarms per minute on clean drives (after k-of-n
@@ -23,8 +24,8 @@ import numpy as np
 
 from common import RESULTS_DIR, SEED
 from road_eval import evaluate, print_eval, save_eval, smooth_flags
-from road_features import add_gaps, load_split, make_features, training_frames
-from road_profile import get_profile
+from road_features import add_gaps, load_split, make_features, training_features, training_frames
+from road_profile import FOLDS, fold_profiles, get_profile
 from road_rules import rule_flags
 
 MODELS = RESULTS_DIR / "models"
@@ -103,7 +104,7 @@ def main():
 
     # ---------- data ----------
     sel = training_frames(profile, args.benign, SEED)
-    x_train, cols = drop_id(*make_features(sel, profile))
+    x_train, cols = drop_id(*training_features(sel, profile, fold_profiles(profile), FOLDS))
     y_train = sel["label"].to_numpy().astype(np.float32)
 
     val = add_gaps(load_split("val"))
