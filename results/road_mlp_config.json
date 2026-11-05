@@ -42,43 +42,50 @@
       "threshold": 0.5,
       "recall_all": 0.998,
       "recall_masq": 0.998589562764457,
-      "fa_per_min": 27.27
+      "alert_frames_per_min": 3.76,
+      "warning_frames_per_min": 23.51
     },
     {
       "threshold": 0.6,
       "recall_all": 0.998,
       "recall_masq": 0.998589562764457,
-      "fa_per_min": 27.11
+      "alert_frames_per_min": 3.6,
+      "warning_frames_per_min": 23.51
     },
     {
       "threshold": 0.7,
       "recall_all": 0.998,
       "recall_masq": 0.998589562764457,
-      "fa_per_min": 26.71
+      "alert_frames_per_min": 3.2,
+      "warning_frames_per_min": 23.51
     },
     {
       "threshold": 0.8,
       "recall_all": 0.998,
       "recall_masq": 0.998589562764457,
-      "fa_per_min": 26.71
+      "alert_frames_per_min": 3.2,
+      "warning_frames_per_min": 23.51
     },
     {
       "threshold": 0.9,
       "recall_all": 0.998,
       "recall_masq": 0.998589562764457,
-      "fa_per_min": 26.71
+      "alert_frames_per_min": 3.2,
+      "warning_frames_per_min": 23.51
     },
     {
       "threshold": 0.95,
       "recall_all": 0.998,
       "recall_masq": 0.998589562764457,
-      "fa_per_min": 26.71
+      "alert_frames_per_min": 3.2,
+      "warning_frames_per_min": 23.51
     },
     {
       "threshold": 0.98,
       "recall_all": 0.998,
       "recall_masq": 0.998589562764457,
-      "fa_per_min": 26.71
+      "alert_frames_per_min": 3.2,
+      "warning_frames_per_min": 23.51
     }
   ]
 }

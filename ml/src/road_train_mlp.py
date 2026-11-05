@@ -11,9 +11,10 @@ Protocol:
 1. Train on the 'train' split (same frames as the RF), early stopping on 'val'.
    Training features are out-of-fold (see road_features.training_features).
 2. Post-training full-int8 quantization (TFLite), calibrated on training frames.
-3. On 'val': choose the alert threshold = highest masquerade recall with at most
-   MAX_FA_PER_MIN false alarms per minute on clean drives (after k-of-n
-   smoothing). The threshold is saved and reused unchanged with --final.
+3. On 'val': choose the threshold = highest masquerade recall at ALERT level with
+   at most MAX_FA_PER_MIN ALERT frames per minute on clean drives (after k-of-n
+   smoothing). It is saved and reused unchanged on 'test' with --final.
+4. Two severity levels (see detector()): ALERT and WARNING.
 """
 
 import argparse
@@ -23,8 +24,8 @@ import time
 import numpy as np
 
 from common import RESULTS_DIR, SEED
-from road_eval import evaluate, print_eval, save_eval, smooth_flags
-from road_features import add_gaps, load_split, make_features, training_features, training_frames
+from road_eval import evaluate_levels, print_levels, save_eval, smooth_flags
+from road_features import add_gaps, load_split, make_features, strong_evidence, training_features, training_frames
 from road_profile import FOLDS, fold_profiles, get_profile
 from road_rules import rule_flags
 
@@ -81,10 +82,16 @@ def predict_int8(tflite_model: bytes, x: np.ndarray, batch: int = 16384) -> np.n
     return probs
 
 
-def detector(df, unknown, fast, probs, threshold, k, n):
-    """Final alert = unknown ID (at once) OR k-of-n smoothed (rate rule OR model)."""
+def detector(df, unknown, fast, strong, probs, threshold, k, n):
+    """Two severity levels, as shown on the dashboard.
+    ALERT   = unknown ID (at once) OR k-of-n smoothed (rate rule OR model backed by
+              strong evidence: impossible value or broken signal pair)
+    WARNING = k-of-n smoothed model flags whose only evidence is a value never seen
+              before (possibly a normal car state missing from the training drives)."""
     ai = (~unknown) & (probs >= threshold)
-    return unknown | smooth_flags(df, fast | ai, k, n)
+    alert = unknown | smooth_flags(df, fast | (ai & strong), k, n)
+    warning = smooth_flags(df, ai, k, n) & ~alert
+    return alert, warning
 
 
 def main():
@@ -109,6 +116,7 @@ def main():
 
     val = add_gaps(load_split("val"))
     unknown_v, fast_v = rule_flags(val, profile, args.k)
+    strong_v = strong_evidence(val, profile)
     x_val, _ = drop_id(*make_features(val, profile))
     known_v = ~unknown_v
     y_val = val["label"].to_numpy().astype(np.float32)
@@ -145,18 +153,23 @@ def main():
 
     masq = ((val["label"] == 1) & (val["variant"] == "masquerade")).to_numpy()
     sweep, best = [], None
-    print(f"\nThreshold sweep on val (int8 model, rules + model, smoothing {k_s}/{n_s}):")
-    print(f"{'thr':>5s} {'recall all':>10s} {'recall masq':>11s} {'FA/min':>7s}")
+    print(f"\nThreshold sweep on val (int8 model, rules + model, smoothing {k_s}/{n_s}), ALERT level:")
+    print(f"{'thr':>5s} {'recall all':>10s} {'recall masq':>11s} {'ALERT fr/min':>12s} {'WARN fr/min':>11s}")
     for thr in THRESHOLDS:
-        m = evaluate(val, detector(val, unknown_v, fast_v, p_int8, thr, k_s, n_s))
-        masq_flag = detector(val, unknown_v, fast_v, p_int8, thr, k_s, n_s)[masq].mean()
-        sweep.append({"threshold": thr, "recall_all": m["recall_all_attacks"], "recall_masq": float(masq_flag),
-                      "fa_per_min": m["false_alarms_per_min_ambient"]})
-        print(f"{thr:5.2f} {m['recall_all_attacks']:10.3f} {masq_flag:11.3f} {m['false_alarms_per_min_ambient']:7.2f}")
-        if m["false_alarms_per_min_ambient"] <= MAX_FA_PER_MIN and (best is None or masq_flag > best[1]):
+        alert, warning = detector(val, unknown_v, fast_v, strong_v, p_int8, thr, k_s, n_s)
+        m = evaluate_levels(val, alert, warning)
+        masq_flag = float(alert[masq].mean())
+        c = m["clean_drives"]
+        sweep.append({"threshold": thr, "recall_all": m["alert"]["recall_all_attacks"], "recall_masq": masq_flag,
+                      "alert_frames_per_min": c["alert_frames_per_min"],
+                      "warning_frames_per_min": c["warning_frames_per_min"]})
+        print(f"{thr:5.2f} {m['alert']['recall_all_attacks']:10.3f} {masq_flag:11.3f} "
+              f"{c['alert_frames_per_min']:12.2f} {c['warning_frames_per_min']:11.2f}")
+        if c["alert_frames_per_min"] <= MAX_FA_PER_MIN and (best is None or masq_flag > best[1]):
             best = (thr, masq_flag)
     threshold = best[0] if best else max(THRESHOLDS)
-    print(f"-> chosen threshold {threshold} (max masquerade recall with <= {MAX_FA_PER_MIN} false alarms/min)")
+    print(f"-> chosen threshold {threshold} (max masquerade ALERT recall with <= {MAX_FA_PER_MIN} "
+          f"ALERT frames/min on clean drives)")
 
     config = {"threshold": threshold, "smooth": [k_s, n_s], "rate_k": args.k, "features": cols,
               "parameters": int(model.count_params()), "tflite_bytes": len(tflite),
@@ -164,17 +177,17 @@ def main():
     (RESULTS_DIR / "road_mlp_config.json").write_text(json.dumps(config, indent=2))
 
     # ---------- report ----------
-    splits = [("val", val, x_val, unknown_v, fast_v)]
+    splits = [("val", val, x_val, unknown_v, fast_v, strong_v)]
     if args.final:
         test = add_gaps(load_split("test"))
         u_t, f_t = rule_flags(test, profile, args.k)
         x_t, _ = drop_id(*make_features(test, profile))
-        splits.append(("test", test, x_t, u_t, f_t))
-    for split, df, x, unk, fast in splits:
+        splits.append(("test", test, x_t, u_t, f_t, strong_evidence(test, profile)))
+    for split, df, x, unk, fast, strong in splits:
         for name, probs in [("float32", model.predict(x, batch_size=65536, verbose=0)[:, 0]),
                             ("int8", predict_int8(tflite, x))]:
-            m = evaluate(df, detector(df, unk, fast, probs, threshold, k_s, n_s))
-            print_eval(m, f"RULES + MLP {name}, threshold {threshold}, smoothing {k_s}/{n_s} - {split}")
+            m = evaluate_levels(df, *detector(df, unk, fast, strong, probs, threshold, k_s, n_s))
+            print_levels(m, f"RULES + MLP {name}, threshold {threshold}, smoothing {k_s}/{n_s} - {split}")
             save_eval(m, f"road_mlp_{name}_{split}")
 
 

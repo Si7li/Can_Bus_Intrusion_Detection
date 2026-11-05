@@ -83,7 +83,7 @@ def add_gaps(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def novelty(df: pd.DataFrame, profile: dict) -> np.ndarray:
+def novelty(df: pd.DataFrame, profile: dict, modes: tuple = (1, 2)) -> np.ndarray:
     """(n, 8) bool: byte value not normal for this ID, using the check chosen per
     byte in the profile (1 = never seen exactly, 2 = outside the seen range + margin,
     0 = byte ignored because new values are common in normal driving)."""
@@ -103,7 +103,9 @@ def novelty(df: pd.DataFrame, profile: dict) -> np.ndarray:
     for j, b in enumerate(BYTES):
         v = df[b].to_numpy().astype(np.int16)
         m = mode[idx, j]
-        out[:, j] = ((m == 1) & ~seen[idx, j, v]) | ((m == 2) & ((v < lo[idx, j]) | (v > hi[idx, j])))
+        exact = (m == 1) & ~seen[idx, j, v]
+        outside = (m == 2) & ((v < lo[idx, j]) | (v > hi[idx, j]))
+        out[:, j] = (exact if 1 in modes else False) | (outside if 2 in modes else False)
     return out
 
 
@@ -205,3 +207,17 @@ def training_features(sel: pd.DataFrame, profile: dict, folds: list[dict], fold_
             x = np.zeros((len(sel), xi.shape[1]), np.float32)
         x[m] = xi
     return x, cols
+
+
+STRONG_SURPRISE_BITS = 8.0
+
+
+def strong_evidence(df: pd.DataFrame, profile: dict) -> np.ndarray:
+    """Per frame: is there evidence beyond 'a value never seen before'?
+    - a byte outside its normal range + margin (an impossible value, e.g. speed 0xFF)
+    - a broken signal pair (byte very unlikely given its partner, > 8 bits)
+    Model alerts backed by this evidence are ALERTs; the others are WARNINGs
+    (possibly a normal car state that the training drives never contained)."""
+    outside = novelty(df, profile, modes=(2,)).any(axis=1)
+    broken_pair = context_surprise(df, profile).max(axis=1) > STRONG_SURPRISE_BITS
+    return outside | broken_pair

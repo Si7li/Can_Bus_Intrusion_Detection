@@ -5,6 +5,7 @@ Reported per (attack family, variant):
 - detected         : was the attack flagged at all in each capture
 - delay_ms         : time from the first forged frame to the first flagged forged frame
 Reported on benign traffic:
+- events           : flagged frames less than 1 s apart count as one event (incident)
 - fpr              : share of benign frames flagged (all captures, incl. real frames during attacks)
 - fpr_clean_drives : share of frames flagged on the clean ambient drives
 - false_alarms_min : flagged frames per minute on the clean ambient drives only
@@ -80,3 +81,58 @@ def print_eval(m: dict, title: str):
 def save_eval(m: dict, name: str):
     RESULTS_DIR.mkdir(exist_ok=True)
     (RESULTS_DIR / f"{name}.json").write_text(json.dumps(m, indent=2))
+
+
+EVENT_GAP_S = 1.0
+
+
+def count_events(df: pd.DataFrame, flags: np.ndarray, gap: float = EVENT_GAP_S) -> int:
+    """Alert events: flagged frames closer than `gap` seconds belong to the same
+    event (the dashboard shows one incident, not hundreds of frames)."""
+    n = 0
+    f = np.asarray(flags, dtype=bool)
+    for _, t in df.loc[f, ["capture", "t"]].groupby("capture", observed=True)["t"]:
+        t = np.sort(t.to_numpy())
+        n += 1 + int((np.diff(t) > gap).sum())
+    return n
+
+
+def evaluate_levels(df: pd.DataFrame, alert: np.ndarray, warning: np.ndarray) -> dict:
+    alert = np.asarray(alert, bool)
+    warning = np.asarray(warning, bool) & ~alert
+    amb = (df["variant"] == "ambient").to_numpy()
+    d_amb = df[amb]
+    hours = sum(g["t"].iloc[-1] - g["t"].iloc[0] for _, g in d_amb.groupby("capture", observed=True)) / 3600
+    return {
+        "alert": evaluate(df, alert),
+        "alert_or_warning": evaluate(df, alert | warning),
+        "clean_drives": {
+            "hours": round(hours, 3),
+            "alert_events": count_events(d_amb, alert[amb]),
+            "warning_events": count_events(d_amb, warning[amb]),
+            "alert_events_per_hour": round(count_events(d_amb, alert[amb]) / hours, 2) if hours else None,
+            "warning_events_per_hour": round(count_events(d_amb, warning[amb]) / hours, 2) if hours else None,
+            "alert_frames_per_min": round(float(alert[amb].sum()) / (60 * hours), 2) if hours else None,
+            "warning_frames_per_min": round(float(warning[amb].sum()) / (60 * hours), 2) if hours else None,
+            "warning_frames_by_capture": {str(k): int(v) for k, v in
+                                          d_amb.loc[warning[amb], "capture"].astype(str).value_counts().items()},
+            "alert_frames_by_capture": {str(k): int(v) for k, v in
+                                        d_amb.loc[alert[amb], "capture"].astype(str).value_counts().items()},
+        },
+    }
+
+
+def print_levels(m: dict, title: str):
+    a, aw, c = m["alert"], m["alert_or_warning"], m["clean_drives"]
+    print(f"\n=== {title} ===")
+    print(f"{'attack / variant':42s} {'frames':>7s} {'ALERT':>7s} {'A or W':>7s} {'detected':>9s} {'delay ms':>9s}")
+    for k, v in a["per_attack"].items():
+        delay = "-" if v["median_delay_ms"] is None else f"{v['median_delay_ms']:.0f}"
+        print(f"{k:42s} {v['attack_frames']:7,} {v['recall']:7.3f} {aw['per_attack'][k]['recall']:7.3f} "
+              f"{v['captures_detected']:>9s} {delay:>9s}")
+    print(f"\nall attack frames caught : ALERT {a['recall_all_attacks']} | ALERT or WARNING {aw['recall_all_attacks']}")
+    print(f"clean drives ({60 * c['hours']:.1f} min):")
+    print(f"  ALERT   : {c['alert_events']} events ({c['alert_events_per_hour']}/h), {c['alert_frames_per_min']} frames/min"
+          f"  {c['alert_frames_by_capture'] or ''}")
+    print(f"  WARNING : {c['warning_events']} events ({c['warning_events_per_hour']}/h), {c['warning_frames_per_min']} frames/min"
+          f"  {c['warning_frames_by_capture'] or ''}")
