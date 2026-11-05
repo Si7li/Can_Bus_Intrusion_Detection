@@ -5,7 +5,7 @@
     python pc/adapter_test.py --set-bitrate 500000   # store a new CAN bitrate in the adapter
 
 Protocol (identified 2026-11-05 by sniffing the Nucleo's test frames): Robotell,
-serial port at 500,000 baud. Each frame is
+serial port at 1,000,000 baud (500,000 out of the box, raised with set_serial_rate). Each frame is
     AA AA | ID (4 bytes LE) | data (8) | DLC | channel | ext | rtr | checksum | 55 55
 with 0xA5 as escape byte before any AA/55/A5 inside the frame. python-can
 supports it as interface "robotell".
@@ -20,7 +20,7 @@ import time
 import can
 
 PORT = "/dev/ttyUSB0"
-SERIAL_BAUD = 500_000      # USB-serial speed of this adapter (not the CAN bitrate)
+SERIAL_BAUD = 1_000_000    # USB-serial speed of this adapter (not the CAN bitrate); 500,000 out of the box
 
 
 def open_bus(port: str, bitrate: int | None = None):

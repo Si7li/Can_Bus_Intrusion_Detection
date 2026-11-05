@@ -116,3 +116,43 @@ rounding noise per gap; the comparison feeds Python the same exact microseconds.
 The first, straightforward version (one multiply-add per loop pass, int8 weights
 read from flash) took 115 µs per frame; widening the weights to int16 in RAM and
 using `SMLAD` brought it to 63 µs.
+
+## 4. Live on a real CAN bus
+
+Setup: PC → THRYCY USB-CAN adapter (Robotell protocol, 1 Mbaud serial) → CAN bus at
+500 kbit/s (SN65HVD230 transceiver) → Nucleo-F446RE running the detector on every
+frame → JSON incidents on the ST-LINK serial port → PC. The PC replays each ROAD
+recording at its original timing (`python pc/live_demo.py --all-test`): 99% of
+frames left the PC within 0.05 ms of their recorded time.
+
+**The whole test split was replayed: 4,117,443 frames in 31 minutes.**
+
+| Recording (test split) | Detected live (ALERT) | Delay at the PC | Described by the Nucleo + signal table as |
+|---|---|---:|---|
+| Correlated signal, fabrication / masquerade | yes / yes | 118 / 125 ms | forged wheel speeds, value never seen |
+| Fuzzing | yes | 66 ms | unknown CAN ID |
+| Max coolant temp, fabrication | yes | 499 ms | 0x4E7 arriving faster than normal |
+| Max coolant temp, masquerade (never seen in training) | **no** | — | — (missed offline too) |
+| Max speedometer, fabrication / masquerade | yes / yes | 64 / 60 ms | forged speedometer, value never seen |
+| Reverse light off, fabrication / masquerade | yes / yes | 43 / 136 ms | forged reverse light, contradicts the gear signal |
+| Reverse light on, fabrication / masquerade | yes / yes | 94 / 75 ms | forged reverse light, contradicts the gear signal |
+
+- **10 of 11 attacks detected**, the same ones as offline, and no false incident
+  in the normal traffic of any attack recording.
+- **Clean test drives (22.9 min):** 1 ALERT incident (the same one as offline, in the
+  "benign anomaly" drive) and 233 WARNING incidents (offline: 246 events; an incident
+  here merges WARNING and ALERT frames less than 1 s apart).
+- **Nucleo under real traffic:** up to 2,580 frames/s, detector CPU at most 15.9%,
+  receive queue at most 11 of 256 frames, **0 frames lost, 0 CAN errors**.
+
+**Delay.** Median 75 ms (43–136 ms) from the PC sending the first forged frame to
+the PC receiving the ALERT; 499 ms for coolant (100 ms period). It is the
+detector's own delay (5 flagged frames ≈ 40 ms at a 10 ms period, as offline) plus
+transport through the two USB links. Measured alone (unknown-ID frames, alerted
+without smoothing): ~100 ms for a lone frame, median 30 ms (5–118 ms) inside a
+continuous stream. The adapter buffers its serial input and flushes on an idle
+timeout. In a vehicle the Nucleo sits directly on the bus and this transport delay
+does not exist.
+
+Files: `live_replay_test.json`, `live_replay_log.txt` (everything the Nucleo
+reported), `live_latency.txt`.

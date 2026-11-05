@@ -109,5 +109,14 @@ python check_c_detector.py           # C detector vs Python on every val/test fr
 
 Firmware: `firmware/can_ids_fw` (STM32CubeIDE project). At boot it runs the detector
 self-test on 3,600 real ROAD frames and prints the result and the time per frame on
-the serial port (`/dev/ttyACM0`, 115200 baud). PC side of the bus: `pc/adapter_test.py`
-(USB-CAN adapter, Robotell protocol).
+the serial port (`/dev/ttyACM0`, 921600 baud), then reports incidents as JSON lines. PC side of the bus: `pc/adapter_test.py`
+(USB-CAN adapter, Robotell protocol, 1 Mbaud serial).
+
+Live demo (PC replays a ROAD recording on the CAN bus, the Nucleo detects it):
+
+```bash
+python pc/live_demo.py --list                                  # recordings
+python pc/live_demo.py max_speedometer_attack_1_masquerade     # one attack, around the attack window
+python pc/live_demo.py --all-test                              # whole test split (~31 min), results table
+python pc/live_demo.py --latency                               # transport delay of the USB links alone
+```

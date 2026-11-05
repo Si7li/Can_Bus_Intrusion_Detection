@@ -1,0 +1,8 @@
+# Transport delay PC -> USB-CAN adapter -> CAN -> Nucleo -> ST-LINK serial -> PC (2026-11-05)
+# Measured with frames of an unknown ID (0x7FF): the Nucleo alerts on them at once, no smoothing,
+# so only transport is measured.  python pc/live_demo.py --latency  (+ the stream variant)
+lone frame on an idle link            : median 102 ms (min 91, max 103), 20 frames
+lone frame + 30 frames in one burst   : median 102 ms (min 102, max 103), 8 frames
+frame inside a continuous 2000 fr/s stream: median 30 ms (min 5, max 118), 8 frames
+# -> the adapter buffers its serial input and flushes on a ~100 ms idle timeout; in a continuous
+#    stream (as during a replay) it flushes every few ms, with occasional longer waits.

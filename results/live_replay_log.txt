@@ -1,0 +1,366 @@
+Replaying correlated_signal_attack_1 (81,262 frames, 33.1 s)...
+[   9.74 s] ALERT   forged wheel speeds [value never seen in normal traffic]; wheel speeds [value never seen in normal traffic]  (p=99%)
+
+=== correlated_signal_attack_1: 81,262 frames in 33.1 s, 2087 forged ===
+  attack detected (ALERT): YES, 118 ms after the first forged frame
+  described as: forged wheel speeds [value never seen in normal traffic]; wheel speeds [value never seen in normal traffic]
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2496 frames/s, detector CPU max 15.8%, queue max 6, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.04 ms of their recorded time
+Replaying correlated_signal_attack_1_masquerade (79,176 frames, 33.1 s)...
+[   9.73 s] ALERT   forged wheel speeds [value never seen in normal traffic]; wheel speeds [value never seen in normal traffic]  (p=99%)
+
+=== correlated_signal_attack_1_masquerade: 79,176 frames in 33.1 s, 2087 forged ===
+  attack detected (ALERT): YES, 125 ms after the first forged frame
+  described as: forged wheel speeds [value never seen in normal traffic]; wheel speeds [value never seen in normal traffic]
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2397 frames/s, detector CPU max 15.2%, queue max 7, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.04 ms of their recorded time
+Replaying fuzzing_attack_1 (49,342 frames, 20.3 s)...
+[   5.03 s] ALERT   unknown CAN ID 0x48D: frame from a device that does not belong on this bus (fuzzing / injection)  (p=0%)
+
+=== fuzzing_attack_1: 49,342 frames in 20.3 s, 592 forged ===
+  attack detected (ALERT): YES, 66 ms after the first forged frame
+  described as: unknown CAN ID 0x48D: frame from a device that does not belong on this bus (fuzzing / injection)
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2580 frames/s, detector CPU max 15.3%, queue max 5, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.04 ms of their recorded time
+Replaying max_engine_coolant_temp_attack (61,923 frames, 25.9 s)...
+[  20.85 s] ALERT   forged 0x4E7 arriving faster than normal (extra frames injected)  (p=0%)
+
+=== max_engine_coolant_temp_attack: 61,923 frames in 25.9 s, 43 forged ===
+  attack detected (ALERT): YES, 499 ms after the first forged frame
+  described as: forged 0x4E7 arriving faster than normal (extra frames injected)
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2403 frames/s, detector CPU max 15.2%, queue max 9, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.04 ms of their recorded time
+Replaying max_engine_coolant_temp_attack_masquerade (61,881 frames, 25.9 s)...
+
+=== max_engine_coolant_temp_attack_masquerade: 61,881 frames in 25.9 s, 43 forged ===
+  attack detected (ALERT): NO
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2395 frames/s, detector CPU max 15.2%, queue max 4, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.04 ms of their recorded time
+Replaying max_speedometer_attack_1 (213,397 frames, 88.0 s)...
+[  42.81 s] ALERT   forged speedometer (vehicle speed) [value never seen in normal traffic]; 0x0D0 arriving faster than normal (extra frames injected)  (p=99%)
+
+=== max_speedometer_attack_1: 213,397 frames in 88.0 s, 2445 forged ===
+  attack detected (ALERT): YES, 64 ms after the first forged frame
+  described as: forged speedometer (vehicle speed) [value never seen in normal traffic]; 0x0D0 arriving faster than normal (extra frames injected)
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2514 frames/s, detector CPU max 15.9%, queue max 7, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.04 ms of their recorded time
+Replaying max_speedometer_attack_1_masquerade (210,953 frames, 88.0 s)...
+[  42.81 s] ALERT   forged speedometer (vehicle speed) [value never seen in normal traffic]  (p=99%)
+
+=== max_speedometer_attack_1_masquerade: 210,953 frames in 88.0 s, 2445 forged ===
+  attack detected (ALERT): YES, 60 ms after the first forged frame
+  described as: forged speedometer (vehicle speed) [value never seen in normal traffic]
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2416 frames/s, detector CPU max 15.3%, queue max 7, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.05 ms of their recorded time
+Replaying reverse_light_off_attack_1 (67,902 frames, 28.1 s)...
+[  17.06 s] ALERT   forged reverse light / gear state [contradicts gear selector (found by the pair search)]; 0x0D0 arriving faster than normal (extra frames injected)  (p=99%)
+
+=== reverse_light_off_attack_1: 67,902 frames in 28.1 s, 673 forged ===
+  attack detected (ALERT): YES, 43 ms after the first forged frame
+  described as: forged reverse light / gear state [contradicts gear selector (found by the pair search)]; 0x0D0 arriving faster than normal (extra frames injected)
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2497 frames/s, detector CPU max 15.8%, queue max 10, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.05 ms of their recorded time
+Replaying reverse_light_off_attack_1_masquerade (67,230 frames, 28.1 s)...
+[  17.15 s] ALERT   forged reverse light / gear state [contradicts gear selector (found by the pair search)]  (p=99%)
+
+=== reverse_light_off_attack_1_masquerade: 67,230 frames in 28.1 s, 673 forged ===
+  attack detected (ALERT): YES, 136 ms after the first forged frame
+  described as: forged reverse light / gear state [contradicts gear selector (found by the pair search)]
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2397 frames/s, detector CPU max 15.2%, queue max 10, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.05 ms of their recorded time
+Replaying reverse_light_on_attack_1 (133,237 frames, 54.9 s)...
+[  19.57 s] ALERT   forged reverse light / gear state [contradicts gear selector (found by the pair search)]; 0x0D0 arriving faster than normal (extra frames injected)  (p=99%)
+
+=== reverse_light_on_attack_1: 133,237 frames in 54.9 s, 1992 forged ===
+  attack detected (ALERT): YES, 94 ms after the first forged frame
+  described as: forged reverse light / gear state [contradicts gear selector (found by the pair search)]; 0x0D0 arriving faster than normal (extra frames injected)
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2498 frames/s, detector CPU max 15.8%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.05 ms of their recorded time
+Replaying reverse_light_on_attack_1_masquerade (131,246 frames, 54.9 s)...
+[  19.56 s] ALERT   forged reverse light / gear state [contradicts gear selector (found by the pair search)]  (p=99%)
+
+=== reverse_light_on_attack_1_masquerade: 131,246 frames in 54.9 s, 1992 forged ===
+  attack detected (ALERT): YES, 75 ms after the first forged frame
+  described as: forged reverse light / gear state [contradicts gear selector (found by the pair search)]
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2400 frames/s, detector CPU max 15.2%, queue max 9, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.04 ms of their recorded time
+Replaying ambient_dyno_drive_basic_short (1,063,624 frames, 444.8 s)...
+
+=== ambient_dyno_drive_basic_short: 1,063,624 frames in 444.8 s, 0 forged ===
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2402 frames/s, detector CPU max 15.2%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.04 ms of their recorded time
+Replaying ambient_dyno_drive_benign_anomaly (771,519 frames, 456.5 s)...
+[  10.01 s] ALERT   forged 0x577 byte 2 [contradicts 0x69E byte 2]  (p=99%)
+[ 193.67 s] WARNING forged 0x430 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 421.41 s] WARNING forged 0x0C0 byte 2 [value never seen in normal traffic]; 0x0C0 byte 5 [value never seen in normal traffic]  (p=99%)
+
+=== ambient_dyno_drive_benign_anomaly: 771,519 frames in 456.5 s, 0 forged ===
+  false incidents (outside the attack): 1 ALERT, 2 WARNING
+  Nucleo: up to 2409 frames/s, detector CPU max 15.3%, queue max 11, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.04 ms of their recorded time
+Replaying ambient_highway_street_driving_diagnostics (1,124,751 frames, 469.9 s)...
+[   7.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[   8.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  10.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  11.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  13.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  15.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  16.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  18.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  21.08 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  22.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  26.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  28.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  30.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  32.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  40.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  41.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  42.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  43.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  47.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  48.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  50.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  52.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  55.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  56.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  58.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  59.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  64.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  65.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  68.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  70.08 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  71.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  73.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  74.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  76.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  78.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  79.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  81.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  83.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  84.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  85.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  88.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  89.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  91.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  94.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  97.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[  99.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 102.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 104.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 105.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 106.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 109.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 112.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 116.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 118.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 121.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 123.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 124.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 126.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 129.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 131.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 133.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 134.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 136.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 137.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 138.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 139.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 141.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 144.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 145.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 147.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 148.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 150.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 152.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 154.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 155.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 158.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 160.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 162.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 163.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 165.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 169.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 171.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 173.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 176.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 178.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 181.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 182.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 183.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 184.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 186.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 187.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 188.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 190.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 192.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 195.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 197.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 198.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 199.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 203.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 205.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 207.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 208.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 211.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 213.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 214.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 216.08 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 217.08 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 218.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 222.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 224.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 226.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 227.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 228.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 232.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 234.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 235.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 239.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 240.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 242.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 245.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 248.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 250.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 252.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 253.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 256.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 257.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 258.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 260.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 266.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 268.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 269.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 271.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 272.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 274.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 278.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 281.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 284.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 288.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 290.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 293.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 294.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 295.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 297.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 299.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 302.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 304.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 305.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 308.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 309.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 310.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 314.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 316.08 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 318.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 319.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 321.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 323.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 324.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 325.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 326.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 327.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 329.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 333.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 335.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 336.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 337.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 340.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 344.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 348.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 349.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 352.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 353.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 356.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 358.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 363.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 364.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 366.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 369.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 370.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 372.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 375.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 376.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 377.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 379.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 382.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 385.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 387.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 389.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 392.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 393.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 396.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 399.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 400.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 402.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 403.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 404.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 407.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 409.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 411.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 413.08 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 414.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 415.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 417.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 418.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 420.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 421.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 423.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 425.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 427.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 428.11 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 430.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 432.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 433.12 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 434.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 437.13 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 438.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 441.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 442.14 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 444.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 447.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 448.15 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 450.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 453.16 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 456.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 457.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 459.17 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 462.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 463.18 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 465.09 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 469.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 470.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+[ 471.10 s] WARNING forged 0x655 byte 2 [value never seen in normal traffic]; 0x655 byte 5 [value never seen in normal traffic]  (p=99%)
+
+=== ambient_highway_street_driving_diagnostics: 1,124,751 frames in 469.9 s, 0 forged ===
+  false incidents (outside the attack): 0 ALERT, 231 WARNING
+  Nucleo: up to 2403 frames/s, detector CPU max 15.2%, queue max 10, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.04 ms of their recorded time
+
+recording                                  detected delay ms false A/W  CPU % overflow
+correlated_signal_attack_1                     True      118    0/0      15.8        0
+correlated_signal_attack_1_masquerade          True      125    0/0      15.2        0
+fuzzing_attack_1                               True       66    0/0      15.3        0
+max_engine_coolant_temp_attack                 True      499    0/0      15.2        0
+max_engine_coolant_temp_attack_masquerade     False     None    0/0      15.2        0
+max_speedometer_attack_1                       True       64    0/0      15.9        0
+max_speedometer_attack_1_masquerade            True       60    0/0      15.3        0
+reverse_light_off_attack_1                     True       43    0/0      15.8        0
+reverse_light_off_attack_1_masquerade          True      136    0/0      15.2        0
+reverse_light_on_attack_1                      True       94    0/0      15.8        0
+reverse_light_on_attack_1_masquerade           True       75    0/0      15.2        0
+ambient_dyno_drive_basic_short                 None     None    0/0      15.2        0
+ambient_dyno_drive_benign_anomaly              None     None    1/2      15.3        0
+ambient_highway_street_driving_diagnostics     None     None    0/231    15.2        0
+saved /home/khalils/Desktop/Projects/TinyML_Can_Bus_Intrusion_Detection/results/live_replay_test.json

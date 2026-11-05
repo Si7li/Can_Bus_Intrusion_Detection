@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <string.h>
 #include "ids_detector.h"
 #include "ids_selftest_data.h"
 
@@ -50,21 +51,40 @@ CAN_HandleTypeDef hcan1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-/* ---- CAN test (milestone 1): send 0x123 every 100 ms, print what we receive ---- */
-#define RX_QUEUE_LEN 16u
+/* ---- Live intrusion detection: every received CAN frame goes through ids_process() ---- */
+#define CAN_TEST_TX      0          /* 1 = also send test frame 0x123 every 100 ms (bus bring-up) */
+#define UART_BAUD        921600u    /* serial port to the PC (/dev/ttyACM0) */
+#define RX_QUEUE_LEN     256u       /* power of two; ~100 ms of traffic at 2,400 frames/s */
+#define INCIDENT_GAP_US  1000000u   /* flagged frames less than 1 s apart = one incident */
+#define IDLE_RESET_US    1000000u   /* bus silent > 1 s (car off, replay restarted): forget history */
+#define INC_MAX_IDS      6u         /* IDs listed per incident (unknown IDs are only counted) */
 
 typedef struct {
-  uint32_t id;      /* 11-bit standard ID */
+  uint32_t t_us;    /* TIM2 at reception, 1 MHz */
+  uint16_t id;      /* 11-bit ID; 0xFFF for ROAD's extended 0xFFF; 0xFFFF = other extended ID */
   uint8_t  dlc;     /* 0..8 data bytes */
   uint8_t  data[8];
-  uint32_t tick;    /* HAL_GetTick() when received, ms */
 } can_frame_t;
 
 /* Ring buffer filled by the RX interrupt, emptied by the main loop.
    The interrupt does nothing else (keeps it short). */
 static volatile can_frame_t rx_queue[RX_QUEUE_LEN];
 static volatile uint32_t rx_head = 0, rx_tail = 0, rx_overflow = 0, rx_count = 0;
+#if CAN_TEST_TX
 static uint32_t tx_count = 0, tx_fail = 0;
+#endif
+
+/* One incident = flagged frames less than 1 s apart (same definition as the evaluation). */
+typedef struct { uint16_t id; uint8_t reasons, novel, pair; uint32_t frames; } inc_id_t;
+static struct {
+  uint8_t  active, level, n_ids;
+  uint32_t start_us, last_us, frames, unknown_frames;
+  inc_id_t ids[INC_MAX_IDS];
+} inc;
+
+/* Statistics over the last second */
+static uint32_t st_frames, st_alert, st_warn, st_busy_cyc, st_qmax;
+static uint32_t total_incidents;
 
 /* USER CODE END PV */
 
@@ -152,6 +172,102 @@ static void ids_selftest(void)
   printf("  -> %s\r\n\r\n", (bad_score || bad_level) ? "SELF-TEST FAILED" : "SELF-TEST PASSED (bit-exact)");
 }
 
+/* ---------------- live detection: JSON lines on the serial port ---------------- */
+static inline uint32_t us_now(void) { return TIM2->CNT; }
+
+static void json_reasons(uint8_t r, char *out)        /* -> ["model","strong"] */
+{
+  static const char *names[4] = { "unknown_id", "too_fast", "model", "strong" };
+  char *p = out;
+  *p++ = '[';
+  for (int k = 0; k < 4; k++)
+    if (r & (1u << k)) p += sprintf(p, "%s\"%s\"", p[-1] == '[' ? "" : ",", names[k]);
+  *p++ = ']'; *p = 0;
+}
+
+static void json_bytes(uint8_t m, char *out)          /* bit mask -> [2,5] */
+{
+  char *p = out;
+  *p++ = '[';
+  for (int j = 0; j < 8; j++)
+    if (m & (1u << j)) p += sprintf(p, "%s%d", p[-1] == '[' ? "" : ",", j);
+  *p++ = ']'; *p = 0;
+}
+
+static void incident_end(void)
+{
+  char rs[64], nv[24], pr[24];
+  printf("{\"type\":\"incident_end\",\"t_ms\":%lu,\"level\":\"%s\",\"duration_ms\":%lu,\"frames\":%lu,"
+         "\"unknown_id_frames\":%lu,\"ids\":[",
+         inc.last_us / 1000u, ids_level_name(inc.level), (inc.last_us - inc.start_us) / 1000u,
+         inc.frames, inc.unknown_frames);
+  for (uint32_t k = 0; k < inc.n_ids; k++) {
+    inc_id_t *e = &inc.ids[k];
+    json_reasons(e->reasons, rs); json_bytes(e->novel, nv); json_bytes(e->pair, pr);
+    printf("%s{\"id\":\"0x%03X\",\"frames\":%lu,\"reasons\":%s,\"novel_bytes\":%s,\"pair_bytes\":%s}",
+           k ? "," : "", e->id, e->frames, rs, nv, pr);
+  }
+  printf("]}\r\n");
+  inc.active = 0;
+  BSP_LED_Off(LED2);
+}
+
+/* A flagged frame: start or extend the incident; report when it starts or escalates. */
+static void incident_add(const can_frame_t *c, const ids_result_t *r)
+{
+  if (inc.active && c->t_us - inc.last_us > INCIDENT_GAP_US) incident_end();
+  if (!inc.active) {
+    memset(&inc, 0, sizeof inc);
+    inc.active = 1;
+    inc.start_us = c->t_us;
+    total_incidents++;
+    BSP_LED_On(LED2);
+  }
+  inc.last_us = c->t_us;
+  inc.frames++;
+  if (r->reasons & IDS_R_UNKNOWN_ID) {
+    inc.unknown_frames++;
+  } else {
+    inc_id_t *e = NULL;
+    for (uint32_t k = 0; k < inc.n_ids; k++) if (inc.ids[k].id == c->id) e = &inc.ids[k];
+    if (!e && inc.n_ids < INC_MAX_IDS) { e = &inc.ids[inc.n_ids++]; e->id = c->id; }
+    if (e) { e->frames++; e->reasons |= r->reasons; e->novel |= r->novel_bytes; e->pair |= r->pair_bytes; }
+  }
+  if (r->level > inc.level) {          /* new incident, or WARNING -> ALERT */
+    char rs[64], nv[24], pr[24];
+    inc.level = r->level;
+    json_reasons(r->reasons, rs); json_bytes(r->novel_bytes, nv); json_bytes(r->pair_bytes, pr);
+    printf("{\"type\":\"alert\",\"t_ms\":%lu,\"level\":\"%s\",\"id\":\"0x%03X\",\"reasons\":%s,"
+           "\"novel_bytes\":%s,\"pair_bytes\":%s,\"p\":%u}\r\n",
+           c->t_us / 1000u, ids_level_name(r->level), c->id, rs, nv, pr,
+           (unsigned)(((int)r->score_q + 128) * 100 / 256));
+  }
+}
+
+static void process_frame(const can_frame_t *c)
+{
+  static uint32_t last_t;
+  static uint8_t any;
+  if (any && c->t_us - last_t > IDLE_RESET_US) {
+    if (inc.active) incident_end();
+    ids_reset();
+    printf("{\"type\":\"info\",\"msg\":\"bus was idle > 1 s: detector history reset\"}\r\n");
+  }
+  last_t = c->t_us;
+  any = 1;
+
+  ids_frame_t f = { c->t_us, c->id, c->dlc, {0} };
+  memcpy(f.data, c->data, 8);
+  ids_result_t r;
+  uint32_t t0 = DWT->CYCCNT;
+  ids_process(&f, &r);
+  st_busy_cyc += DWT->CYCCNT - t0;
+  st_frames++;
+  if (r.level == IDS_ALERT) st_alert++;
+  else if (r.level == IDS_WARNING) st_warn++;
+  if (r.level != IDS_NORMAL) incident_add(c, &r);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -186,6 +302,20 @@ int main(void)
   MX_USART2_UART_Init();
   MX_CAN1_Init();
   /* USER CODE BEGIN 2 */
+  /* Faster serial port than CubeMX's 115200: alerts must not slow down reception. */
+  huart2.Init.BaudRate = UART_BAUD;
+  if (HAL_UART_Init(&huart2) != HAL_OK) Error_Handler();
+  printf("\r\nCAN IDS firmware booted, core clock %lu Hz, APB1 %lu Hz\r\n",
+         HAL_RCC_GetHCLKFreq(), HAL_RCC_GetPCLK1Freq());
+  ids_selftest();                     /* before CAN starts: nothing arrives during the test */
+
+  /* TIM2 = free-running 32-bit microsecond clock (timer clock = 2 x APB1 = 90 MHz). */
+  __HAL_RCC_TIM2_CLK_ENABLE();
+  TIM2->PSC = 2u * HAL_RCC_GetPCLK1Freq() / 1000000u - 1u;
+  TIM2->ARR = 0xFFFFFFFFu;
+  TIM2->EGR = TIM_EGR_UG;             /* load the prescaler now */
+  TIM2->CR1 = TIM_CR1_CEN;
+
   /* Accept every ID: an intrusion detector must see unknown IDs too.
      Filter bank 0, mask 0 = match all, everything goes to RX FIFO 0. */
   CAN_FilterTypeDef filter = {0};
@@ -208,12 +338,9 @@ int main(void)
     printf("ERROR: CAN1 did not start. Is the SN65HVD230 board wired (3V3, GND, PB8=CRX, PB9=CTX)?\r\n");
   }
   if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK) Error_Handler();
-  printf("CAN1 started: 500 kbit/s, PB8=RX PB9=TX, accepting all IDs, sending 0x123 every 100 ms\r\n");
-  printf("\r\nCAN IDS firmware booted, core clock %lu Hz, APB1 %lu Hz\r\n",
-         HAL_RCC_GetHCLKFreq(), HAL_RCC_GetPCLK1Freq());
-  ids_selftest();
+  printf("{\"type\":\"info\",\"msg\":\"CAN1 started at 500 kbit/s, detector running on every frame\"}\r\n");
 
-  /* USER CODE END 2 */
+/* USER CODE END 2 */
 
   /* Initialize leds */
   BSP_LED_Init(LED2);
@@ -232,7 +359,8 @@ int main(void)
     static uint32_t last_tx = 0, last_status = 0;
     uint32_t now = HAL_GetTick();
 
-    /* 1) every 100 ms: send ID 0x123 = [counter (4 bytes, little endian), CA FE BA BE] */
+#if CAN_TEST_TX
+    /* every 100 ms: send ID 0x123 = [counter (4 bytes, little endian), CA FE BA BE] */
     if (now - last_tx >= 100u) {
       last_tx = now;
       CAN_TxHeaderTypeDef tx = {0};
@@ -244,38 +372,40 @@ int main(void)
       tx.RTR = CAN_RTR_DATA;
       tx.DLC = 8;
       if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) > 0 &&
-          HAL_CAN_AddTxMessage(&hcan1, &tx, d, &mailbox) == HAL_OK) {
-        tx_count++;
-      } else {
-        tx_fail++;
-      }
+          HAL_CAN_AddTxMessage(&hcan1, &tx, d, &mailbox) == HAL_OK) tx_count++;
+      else tx_fail++;
     }
+#else
+    (void)last_tx;
+#endif
 
-    /* 2) print every received frame and toggle the green LED */
+    /* 1) run the detector on every received frame, in order */
+    uint32_t depth = rx_head - rx_tail;
+    if (depth > st_qmax) st_qmax = depth;
     while (rx_tail != rx_head) {
       can_frame_t f;
       uint32_t i = rx_tail % RX_QUEUE_LEN;
-      f.id = rx_queue[i].id; f.dlc = rx_queue[i].dlc; f.tick = rx_queue[i].tick;
+      f.t_us = rx_queue[i].t_us; f.id = rx_queue[i].id; f.dlc = rx_queue[i].dlc;
       for (int k = 0; k < 8; k++) f.data[k] = rx_queue[i].data[k];
       rx_tail++;
-      printf("RX %lu ms  id=0x%03lX  dlc=%u  data=", f.tick, f.id, f.dlc);
-      for (int k = 0; k < f.dlc; k++) printf("%02X ", f.data[k]);
-      printf("\r\n");
-      BSP_LED_Toggle(LED2);
+      process_frame(&f);
     }
 
-    /* 3) once per second: status. TEC/REC = transmit/receive error counters of the
-          CAN controller. TEC climbing to 128+ means nobody acknowledges our frames
-          (wiring, missing termination, or the other node at a different bitrate). */
+    /* 2) an incident ends after 1 s without flagged frames */
+    if (inc.active && us_now() - inc.last_us > INCIDENT_GAP_US) incident_end();
+
+    /* 3) once per second: status. TEC/REC = CAN error counters (should stay 0). */
     if (now - last_status >= 1000u) {
+      uint32_t ms = now - last_status;
       last_status = now;
       uint32_t esr = hcan1.Instance->ESR;
-      printf("status: tx=%lu tx_fail=%lu rx=%lu rx_overflow=%lu  TEC=%lu REC=%lu%s%s  err=0x%08lX\r\n",
-             tx_count, tx_fail, rx_count, rx_overflow,
-             (esr >> 16) & 0xFF, (esr >> 24) & 0xFF,
-             (esr & CAN_ESR_EPVF) ? " ERROR-PASSIVE" : "",
-             (esr & CAN_ESR_BOFF) ? " BUS-OFF" : "",
-             HAL_CAN_GetError(&hcan1));
+      uint32_t cpu10 = (uint32_t)((uint64_t)st_busy_cyc * 1000u / ((uint64_t)HAL_RCC_GetHCLKFreq() * ms / 1000u));
+      printf("{\"type\":\"status\",\"t_ms\":%lu,\"fps\":%lu,\"cpu_pct\":%lu.%lu,\"queue_max\":%lu,\"overflow\":%lu,"
+             "\"alert_frames\":%lu,\"warning_frames\":%lu,\"incidents\":%lu,\"tec\":%lu,\"rec\":%lu%s}\r\n",
+             us_now() / 1000u, st_frames * 1000u / ms, cpu10 / 10u, cpu10 % 10u, st_qmax, rx_overflow,
+             st_alert, st_warn, total_incidents, (esr >> 16) & 0xFF, (esr >> 24) & 0xFF,
+             (esr & CAN_ESR_BOFF) ? ",\"bus_off\":true" : "");
+      st_frames = st_alert = st_warn = st_busy_cyc = st_qmax = 0;
     }
   }
   /* USER CODE END 3 */
@@ -427,21 +557,25 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-/* Called from the CAN1 RX0 interrupt for each frame in FIFO 0: copy it into the
-   ring buffer and return. Processing happens in the main loop. */
+/* Called from the CAN1 RX0 interrupt for each frame in FIFO 0: timestamp it,
+   copy it into the ring buffer and return. Detection happens in the main loop. */
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
   CAN_RxHeaderTypeDef h;
   uint8_t d[8];
   while (HAL_CAN_GetRxFifoFillLevel(hcan, CAN_RX_FIFO0) > 0) {
+    uint32_t t = TIM2->CNT;
     if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &h, d) != HAL_OK) break;
     rx_count++;
     if (rx_head - rx_tail >= RX_QUEUE_LEN) { rx_overflow++; continue; }
     uint32_t i = rx_head % RX_QUEUE_LEN;
-    rx_queue[i].id = (h.IDE == CAN_ID_STD) ? h.StdId : h.ExtId;
+    /* ROAD's ID 0xFFF does not fit in 11 bits: the replay sends it as an extended
+       frame. Any other extended frame is unknown to the whitelist (0xFFFF). */
+    if (h.IDE == CAN_ID_STD) rx_queue[i].id = (uint16_t)h.StdId;
+    else rx_queue[i].id = (h.ExtId == 0xFFFu) ? 0xFFFu : 0xFFFFu;
     rx_queue[i].dlc = (h.DLC > 8u) ? 8u : (uint8_t)h.DLC;     /* input validation */
     for (uint32_t k = 0; k < 8u; k++) rx_queue[i].data[k] = d[k];
-    rx_queue[i].tick = HAL_GetTick();
+    rx_queue[i].t_us = t;
     rx_head++;
   }
 }

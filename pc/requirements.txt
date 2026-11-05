@@ -1,3 +1,6 @@
 # PC side: talk to the USB-CAN adapter, replay traffic, dashboard
 python-can>=4.4
 pyserial>=3.5
+numpy
+pandas
+pyarrow
