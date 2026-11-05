@@ -1,9 +1,11 @@
 # TinyML Intrusion Detection for an Automotive CAN Bus (STM32F446)
 
-An STM32 NUCLEO-F446RE on a CAN bus runs a small int8 neural network that classifies
-every CAN frame in real time as normal traffic, DoS or one of four spoofing attacks.
-It is trained on the public **CICIoV2024** dataset, recorded on a 2019 Ford. The device is
-also protected at the physical, logical and network layers.
+An STM32 NUCLEO-F446RE on a CAN bus checks every CAN frame in real time: rules
+(ID whitelist, timing) plus a small int8 neural network (1,441 parameters) that
+spots forged values on legitimate IDs. It raises ALERT / WARNING with the bytes
+that triggered it. Trained and tested on the **ROAD** dataset (real vehicle,
+masquerade attacks); **CICIoV2024** is used for the rules layer and an
+honest-evaluation finding. Results: [`results/RESULTS.md`](results/RESULTS.md).
 
 Full design and plan: [`docs/PROJECT_HANDOFF.md`](docs/PROJECT_HANDOFF.md).
 
@@ -90,3 +92,22 @@ numbers that go into the report.
   on its accuracy. `--drop-conflicts` removes them; keeping them is the honest default.
 - **Metrics**: per-class F1, macro-F1, confusion matrix, and the false-positive rate on benign frames.
   Accuracy alone is meaningless with 87% benign traffic.
+
+## 4. ROAD detector (the AI) and the STM32 version
+
+```bash
+cd ml/src
+python road_data.py                  # parse the ROAD logs -> data/processed/road/
+python road_rules.py                 # rules only (and builds results/road_profile.json)
+python road_train_mlp.py             # train + int8 quantize + threshold on val
+python road_train_mlp.py --final     # score the test split (done once, results in RESULTS.md)
+
+python mcu_model.py                  # check the C arithmetic of the int8 network against TFLite
+python export_c.py                   # write the firmware headers (tables, weights, self-test data)
+python check_c_detector.py           # C detector vs Python on every val/test frame (bit-exact)
+```
+
+Firmware: `firmware/can_ids_fw` (STM32CubeIDE project). At boot it runs the detector
+self-test on 3,600 real ROAD frames and prints the result and the time per frame on
+the serial port (`/dev/ttyACM0`, 115200 baud). PC side of the bus: `pc/adapter_test.py`
+(USB-CAN adapter, Robotell protocol).

@@ -22,6 +22,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include "ids_detector.h"
+#include "ids_selftest_data.h"
 
 /* USER CODE END Includes */
 
@@ -86,6 +88,70 @@ int _write(int file, char *ptr, int len)
   return len;
 }
 
+/* Detector self-test: run the C detector on real ROAD frames stored in flash
+   (ids_selftest_data.h) and compare every answer with what the Python pipeline
+   gave for the same frames. Also measures the time per frame with the DWT
+   cycle counter (1 cycle = 1/180 MHz = 5.6 ns). */
+static void ids_selftest(void)
+{
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;     /* enable the cycle counter */
+  DWT->CYCCNT = 0;
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
+  uint32_t bad_score = 0, bad_level = 0, forged = 0, forged_alert = 0, normal_flagged = 0;
+  uint32_t n_known = 0, c_min = 0xFFFFFFFFu, c_max = 0;
+  uint64_t c_sum = 0;
+  ids_result_t r;
+
+  for (uint32_t i = 0; i < IDS_SELFTEST_N; i++) {
+    const ids_selftest_frame_t *s = &ids_selftest_frames[i];
+    ids_frame_t f = { s->t_us, s->can_id, 8, {0} };
+    for (int j = 0; j < 8; j++) f.data[j] = s->data[j];
+    if (s->reset) ids_reset();
+
+    uint32_t t0 = DWT->CYCCNT;
+    ids_process(&f, &r);
+    uint32_t cyc = DWT->CYCCNT - t0;
+
+    if (!(r.reasons & IDS_R_UNKNOWN_ID)) {           /* frames that went through the AI */
+      n_known++; c_sum += cyc;
+      if (cyc < c_min) c_min = cyc;
+      if (cyc > c_max) c_max = cyc;
+    }
+    const ids_selftest_expect_t *e = &ids_selftest_expect[i];
+    if (r.score_q != e->score_q || r.level != e->level) {
+      if (bad_score + bad_level < 5)
+        printf("  mismatch frame %lu: id=0x%03X score %d (python %d) level %u (python %u)\r\n",
+               i, s->can_id, r.score_q, e->score_q, r.level, e->level);
+      bad_score += r.score_q != e->score_q;
+      bad_level += r.level != e->level;
+    }
+    uint8_t is_forged = (ids_selftest_forged[i >> 3] >> (i & 7)) & 1u;
+    forged += is_forged;
+    forged_alert += is_forged && r.level == IDS_ALERT;
+    normal_flagged += !is_forged && r.level != IDS_NORMAL;
+  }
+  ids_reset();
+
+  /* model alone, on the features of the last frame */
+  uint32_t m0 = DWT->CYCCNT;
+  for (int k = 0; k < 100; k++) (void)ids_model_run(r.features_q);
+  uint32_t model_cyc = (DWT->CYCCNT - m0) / 100u;
+
+  uint32_t avg = (uint32_t)(c_sum / (n_known ? n_known : 1));
+  uint32_t mhz = HAL_RCC_GetHCLKFreq() / 1000000u;
+  printf("\r\n=== Detector self-test: %u real ROAD frames ===\r\n", (unsigned)IDS_SELFTEST_N);
+  printf("  same model output as Python : %lu / %u\r\n", IDS_SELFTEST_N - bad_score, (unsigned)IDS_SELFTEST_N);
+  printf("  same ALERT/WARNING as Python: %lu / %u\r\n", IDS_SELFTEST_N - bad_level, (unsigned)IDS_SELFTEST_N);
+  printf("  forged frames at ALERT      : %lu / %lu, normal frames flagged: %lu\r\n",
+         forged_alert, forged, normal_flagged);
+  printf("  time per frame (rules + features + int8 MLP): avg %lu cycles = %lu.%02lu us, min %lu, max %lu cycles\r\n",
+         avg, avg / mhz, (avg % mhz) * 100u / mhz, c_min, c_max);
+  printf("  of which int8 MLP alone: %lu cycles = %lu.%02lu us\r\n",
+         model_cyc, model_cyc / mhz, (model_cyc % mhz) * 100u / mhz);
+  printf("  -> %s\r\n\r\n", (bad_score || bad_level) ? "SELF-TEST FAILED" : "SELF-TEST PASSED (bit-exact)");
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -145,6 +211,7 @@ int main(void)
   printf("CAN1 started: 500 kbit/s, PB8=RX PB9=TX, accepting all IDs, sending 0x123 every 100 ms\r\n");
   printf("\r\nCAN IDS firmware booted, core clock %lu Hz, APB1 %lu Hz\r\n",
          HAL_RCC_GetHCLKFreq(), HAL_RCC_GetPCLK1Freq());
+  ids_selftest();
 
   /* USER CODE END 2 */
 

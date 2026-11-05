@@ -1,0 +1,25 @@
+=== val: 2,726,553 frames (2,726,216 with a known ID) ===
+  model inputs (27 int8) identical : 100.0000%  (0 frames differ)
+  model output (int8) identical    : 100.0000%
+  ALERT/WARNING level identical    : 100.0000%  (0 frames differ)
+=== test: 4,117,443 frames (4,116,887 with a known ID) ===
+  model inputs (27 int8) identical : 100.0000%  (0 frames differ)
+  model output (int8) identical    : 100.0000%
+  ALERT/WARNING level identical    : 100.0000%  (0 frames differ)
+=== C DETECTOR (exact-us timestamps) - test ===
+attack / variant                            frames   ALERT  A or W  detected  delay ms
+correlated_signal / fabrication              2,087   0.998   0.998       1/1        41
+correlated_signal / masquerade               2,087   0.998   0.998       1/1        41
+fuzzing / fabrication                          592   0.939   0.939       1/1         0
+max_engine_coolant_temp / fabrication           43   0.884   0.884       1/1       406
+max_engine_coolant_temp / masquerade            43   0.000   0.000       0/1         -
+max_speedometer / fabrication                2,445   0.998   0.998       1/1        41
+max_speedometer / masquerade                 2,445   0.998   0.998       1/1        41
+reverse_light_off / fabrication                673   0.994   0.994       1/1        39
+reverse_light_off / masquerade                 673   0.994   0.994       1/1        39
+reverse_light_on / fabrication               1,992   0.998   0.998       1/1        38
+reverse_light_on / masquerade                1,992   0.998   0.998       1/1        38
+all attack frames caught : ALERT 0.9923 | ALERT or WARNING 0.9923
+clean drives (22.9 min):
+  ALERT   : 1 events (2.63/h), 0.26 frames/min  {'ambient_dyno_drive_benign_anomaly': 6}
+  WARNING : 246 events (645.88/h), 51.29 frames/min  {'ambient_dyno_drive_benign_anomaly': 706, 'ambient_highway_street_driving_diagnostics': 466}

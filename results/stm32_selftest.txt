@@ -1,0 +1,8 @@
+# Serial output of the Nucleo-F446RE at boot (firmware/can_ids_fw, 180 MHz), captured 2026-11-05
+=== Detector self-test: 3600 real ROAD frames ===
+  same model output as Python : 3600 / 3600
+  same ALERT/WARNING as Python: 3600 / 3600
+  forged frames at ALERT      : 94 / 102, normal frames flagged: 0
+  time per frame (rules + features + int8 MLP): avg 11361 cycles = 63.11 us, min 10379, max 11684 cycles
+  of which int8 MLP alone: 8849 cycles = 49.16 us
+  -> SELF-TEST PASSED (bit-exact)
