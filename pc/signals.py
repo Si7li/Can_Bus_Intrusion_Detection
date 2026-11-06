@@ -40,7 +40,10 @@ PARTNERS = _partners()
 
 
 def describe(ev: dict) -> str:
-    """One line for an 'alert' event (or one entry of an incident's 'ids')."""
+    """One line for an 'alert' event (or one entry of an incident's 'ids').
+
+    ALERT = attack evidence, worded "forged". WARNING = the model fired on a value
+    never seen before, which may be a new but normal car state, worded "unusual"."""
     reasons = ev.get("reasons", [])
     if "unknown_id" in reasons:
         return f"unknown CAN ID {ev['id']}: frame from a device that does not belong on this bus (fuzzing / injection)"
@@ -58,5 +61,5 @@ def describe(ev: dict) -> str:
     if "too_fast" in reasons:
         parts.append(f"0x{can_id:03X} arriving faster than normal (extra frames injected)")
     if not parts:
-        parts.append(f"unusual changes on 0x{can_id:03X}")
-    return "forged " + "; ".join(parts)
+        parts.append(f"changes on 0x{can_id:03X}")
+    return ("forged " if ev.get("level") == "ALERT" else "unusual ") + "; ".join(parts)

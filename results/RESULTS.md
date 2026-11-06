@@ -154,5 +154,5 @@ continuous stream. The adapter buffers its serial input and flushes on an idle
 timeout. In a vehicle the Nucleo sits directly on the bus and this transport delay
 does not exist.
 
-Files: `live_replay_test.json`, `live_replay_log.txt` (everything the Nucleo
-reported), `live_latency.txt`.
+Files: `live_replay_test.json`, `live_replay_log.txt` (the PC console output: every
+Nucleo report in readable form), `live_latency.txt`.
