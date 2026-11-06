@@ -7,8 +7,6 @@ that triggered it. Trained and tested on the **ROAD** dataset (real vehicle,
 masquerade attacks); **CICIoV2024** is used for the rules layer and an
 honest-evaluation finding. Results: [`results/RESULTS.md`](results/RESULTS.md).
 
-Full design and plan: [`docs/PROJECT_HANDOFF.md`](docs/PROJECT_HANDOFF.md).
-
 ## Project layout
 
 | Folder | Content |
