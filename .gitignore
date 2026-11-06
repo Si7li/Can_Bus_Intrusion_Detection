@@ -14,3 +14,4 @@ bootloader/**/Debug/
 bootloader/**/Release/
 *.launch
 .metadata/
+docs/
