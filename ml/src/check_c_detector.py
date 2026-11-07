@@ -1,7 +1,7 @@
 """Check that the C detector (firmware/can_ids_fw/Core/Src/ids_detector.c) gives
 exactly the same answers as the Python pipeline, frame by frame.
 
-    python ml/src/check_c_detector.py            # val + test splits
+    python ml/src/check_c_detector.py            # val + test splits (+ synthetic attacks for model v2)
 
 The C file is compiled for the PC (gcc) and fed every frame of the split.
 Compared per frame: the 27 quantized model inputs, the int8 model output, and
@@ -20,13 +20,15 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 from common import PROJECT_ROOT
 from export_c import python_reference
 from mcu_model import load_params
 from road_eval import evaluate_levels, print_levels
-from road_features import BYTES, add_gaps, load_split
+from road_features import BYTES, add_gaps, chunks, load_split
 from road_profile import get_profile
+from road_train_mlp import SLIM, with_synthetic
 
 FW = PROJECT_ROOT / "firmware"
 IN_DT = np.dtype([("t_us", "<u4"), ("id", "<u2"), ("dlc", "u1"), ("reset", "u1"), ("data", "u1", 8)])
@@ -59,26 +61,39 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         exe = build(Path(tmp))
         for split in ["val", "test"]:
-            df = load_split(split)
+            df = with_synthetic(load_split(split), split, profile)      # v2: + synthetic random-data attacks
             df["t"] = np.round(df["t"] * 1e6) / 1e6          # exact microseconds, like the chip
-            df = add_gaps(df)
-            c = run_c(exe, df)
-            q, score, level, unknown = python_reference(df, profile, p)
-            known = ~unknown
-            same_feat = (c["feat"][known] == q[known]).all(axis=1)
-            print(f"\n=== {split}: {len(df):,} frames ({known.sum():,} with a known ID) ===")
-            print(f"  model inputs (27 int8) identical : {same_feat.mean() * 100:.4f}%  ({(~same_feat).sum()} frames differ)")
-            print(f"  model output (int8) identical    : {np.mean(c['score'][known] == score[known]) * 100:.4f}%")
-            print(f"  ALERT/WARNING level identical    : {np.mean(c['level'] == level) * 100:.4f}%  "
-                  f"({(c['level'] != level).sum()} frames differ)")
-            if (~same_feat).any():
-                i = np.flatnonzero(known)[np.flatnonzero(~same_feat)[:3]]
-                for k in i:
-                    diff = np.flatnonzero(c["feat"][k] != q[k])
-                    print(f"    frame {k}: id 0x{df['id'].iloc[k]:03X}, features {diff.tolist()}: "
-                          f"C {c['feat'][k][diff].tolist()} vs Python {q[k][diff].tolist()}")
+            n = n_known = diff_feat = same_score = diff_level = 0
+            examples, slim, levels = [], [], []
+            for d in chunks(df):                              # whole captures at a time (bounded memory)
+                d = add_gaps(d)
+                c = run_c(exe, d)
+                q, score, level, unknown = python_reference(d, profile, p)
+                known = ~unknown
+                same_feat = (c["feat"][known] == q[known]).all(axis=1)
+                n += len(d)
+                n_known += int(known.sum())
+                diff_feat += int((~same_feat).sum())
+                same_score += int((c["score"][known] == score[known]).sum())
+                diff_level += int((c["level"] != level).sum())
+                if (~same_feat).any() and len(examples) < 3:
+                    for k in np.flatnonzero(known)[np.flatnonzero(~same_feat)[:3 - len(examples)]]:
+                        dk = np.flatnonzero(c["feat"][k] != q[k])
+                        examples.append(f"    id 0x{d['id'].iloc[k]:03X}, features {dk.tolist()}: "
+                                        f"C {c['feat'][k][dk].tolist()} vs Python {q[k][dk].tolist()}")
+                if split == "test":
+                    slim.append(d[SLIM])
+                    levels.append(c["level"])
+            print(f"\n=== {split}: {n:,} frames ({n_known:,} with a known ID) ===")
+            print(f"  model inputs (27 int8) identical : {100 * (1 - diff_feat / n_known):.4f}%  ({diff_feat} frames differ)")
+            print(f"  model output (int8) identical    : {100 * same_score / n_known:.4f}%")
+            print(f"  ALERT/WARNING level identical    : {100 * (1 - diff_level / n):.4f}%  "
+                  f"({diff_level} frames differ)")
+            for e in examples:
+                print(e)
             if split == "test":
-                m = evaluate_levels(df, c["level"] == 2, c["level"] == 1)
+                d, lv = pd.concat(slim, ignore_index=True), np.concatenate(levels)
+                m = evaluate_levels(d, lv == 2, lv == 1)
                 print_levels(m, "C DETECTOR (exact-us timestamps) - test")
 
 

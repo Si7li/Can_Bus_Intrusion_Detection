@@ -1,0 +1,149 @@
+{
+  "alert": {
+    "per_attack": {
+      "break_and_fog_light / fabrication": {
+        "attack_frames": 118,
+        "recall": 0.9322,
+        "captures_detected": "1/1",
+        "median_delay_ms": 3999.1
+      },
+      "break_and_fog_light / masquerade": {
+        "attack_frames": 118,
+        "recall": 0.9661,
+        "captures_detected": "1/1",
+        "median_delay_ms": 3999.1
+      },
+      "door_open_warning / fabrication": {
+        "attack_frames": 9661,
+        "recall": 0.0107,
+        "captures_detected": "1/1",
+        "median_delay_ms": 3311.2
+      },
+      "drive_mode_changing / fabrication": {
+        "attack_frames": 2702,
+        "recall": 0.9989,
+        "captures_detected": "1/1",
+        "median_delay_ms": 82.1
+      },
+      "ems / fabrication": {
+        "attack_frames": 7738,
+        "recall": 0.9995,
+        "captures_detected": "1/1",
+        "median_delay_ms": 40.2
+      },
+      "fuzzing_valid_ids_dos / fabrication": {
+        "attack_frames": 606,
+        "recall": 0.8944,
+        "captures_detected": "1/1",
+        "median_delay_ms": 0.0
+      },
+      "random_all8 / masquerade": {
+        "attack_frames": 2812,
+        "recall": 0.9801,
+        "captures_detected": "14/14",
+        "median_delay_ms": 80.7
+      },
+      "random_injected / fabrication": {
+        "attack_frames": 3096,
+        "recall": 0.6066,
+        "captures_detected": "12/13",
+        "median_delay_ms": 80.0
+      },
+      "random_some / masquerade": {
+        "attack_frames": 3385,
+        "recall": 0.8047,
+        "captures_detected": "11/13",
+        "median_delay_ms": 80.2
+      }
+    },
+    "recall_all_attacks": 0.6171,
+    "fpr": 0.0015696991416954858,
+    "fpr_clean_drives": 2.491521161830816e-06,
+    "benign_flagged_in_attack_captures": 22474,
+    "false_alarms_per_min_ambient": 0.27,
+    "ambient_minutes": 97.1,
+    "benign_frames": 14333957
+  },
+  "alert_or_warning": {
+    "per_attack": {
+      "break_and_fog_light / fabrication": {
+        "attack_frames": 118,
+        "recall": 0.9322,
+        "captures_detected": "1/1",
+        "median_delay_ms": 3999.1
+      },
+      "break_and_fog_light / masquerade": {
+        "attack_frames": 118,
+        "recall": 0.9661,
+        "captures_detected": "1/1",
+        "median_delay_ms": 3999.1
+      },
+      "door_open_warning / fabrication": {
+        "attack_frames": 9661,
+        "recall": 0.9995,
+        "captures_detected": "1/1",
+        "median_delay_ms": 40.8
+      },
+      "drive_mode_changing / fabrication": {
+        "attack_frames": 2702,
+        "recall": 0.9989,
+        "captures_detected": "1/1",
+        "median_delay_ms": 82.1
+      },
+      "ems / fabrication": {
+        "attack_frames": 7738,
+        "recall": 0.9995,
+        "captures_detected": "1/1",
+        "median_delay_ms": 40.2
+      },
+      "fuzzing_valid_ids_dos / fabrication": {
+        "attack_frames": 606,
+        "recall": 0.8944,
+        "captures_detected": "1/1",
+        "median_delay_ms": 0.0
+      },
+      "random_all8 / masquerade": {
+        "attack_frames": 2812,
+        "recall": 0.9801,
+        "captures_detected": "14/14",
+        "median_delay_ms": 80.7
+      },
+      "random_injected / fabrication": {
+        "attack_frames": 3096,
+        "recall": 0.8711,
+        "captures_detected": "13/13",
+        "median_delay_ms": 60.6
+      },
+      "random_some / masquerade": {
+        "attack_frames": 3385,
+        "recall": 0.883,
+        "captures_detected": "12/13",
+        "median_delay_ms": 80.2
+      }
+    },
+    "recall_all_attacks": 0.9689,
+    "fpr": 0.0034028984459769204,
+    "fpr_clean_drives": 0.002257126517144732,
+    "benign_flagged_in_attack_captures": 25223,
+    "false_alarms_per_min_ambient": 242.67,
+    "ambient_minutes": 97.1,
+    "benign_frames": 14333957
+  },
+  "clean_drives": {
+    "hours": 1.618,
+    "alert_events": 3,
+    "warning_events": 37,
+    "alert_events_per_hour": 1.85,
+    "warning_events_per_hour": 22.87,
+    "alert_frames_per_min": 0.27,
+    "warning_frames_per_min": 242.4,
+    "warning_frames_by_capture": {
+      "benign_day5_file1_part1": 23413,
+      "benign_day5_file1_part2": 115
+    },
+    "alert_frames_by_capture": {
+      "benign_day5_file1_part2": 19,
+      "benign_day5_file1_part1": 7
+    }
+  }
+}

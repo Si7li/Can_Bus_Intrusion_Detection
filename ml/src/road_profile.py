@@ -1,9 +1,10 @@
-"""Build the normal-traffic profile used by the rules and the AI features (ROAD).
+"""Build the normal-traffic profile used by the rules and the AI features (ROAD or CAN-MIRGU).
 
     python ml/src/road_profile.py
 
 Learned from the TRAINING ambient captures only (never from attacks), then
-checked on the validation ambient captures. Everything in it becomes a small
+checked on the validation ambient captures. CAN-MIRGU also adds the normal
+parts of its training attack recordings (see profile_frames). Everything in it becomes a small
 lookup table in the STM32 firmware:
 
 Pairs are cross-validated inside the training data: searched on each half of
@@ -33,10 +34,10 @@ import time
 import numpy as np
 import pandas as pd
 
-from common import RESULTS_DIR, SEED
-from road_features import BYTES, add_gaps, load_split
+from common import DATASET, RESULTS_DIR, SEED
+from road_features import AMBIENT_SPLIT, BYTES, add_gaps, load_split
 
-PROFILE_PATH = RESULTS_DIR / "road_profile.json"
+PROFILE_PATH = RESULTS_DIR / f"{DATASET}_profile.json"     # road_profile.json / mirgu/mirgu_profile.json
 
 MIN_VALUES, MAX_VALUES = 2, 16      # state-like bytes
 MIN_ENTROPY_BITS = 0.05             # skip bytes that are almost constant
@@ -157,6 +158,9 @@ FOLDS = [
     ["ambient_dyno_drive_extended_long", "ambient_dyno_idle_radio_infotainment",
      "ambient_highway_street_driving_long"],
 ]
+if DATASET == "mirgu":      # Day 1 vs Days 2-4 (mirgu_split.FOLD_DAYS)
+    from mirgu_split import FOLD_DAYS, day_of
+    FOLDS = [[c for c, s in AMBIENT_SPLIT.items() if s == "train" and day_of(c) in days] for days in FOLD_DAYS]
 MAX_SURPRISING_PER_MIN = 1.0
 
 
@@ -235,10 +239,36 @@ def novelty_modes(amb: pd.DataFrame) -> dict:
     return modes
 
 
+ATTACK_MARGIN_S = 5.0
+
+
+def profile_frames(train: pd.DataFrame) -> pd.DataFrame:
+    """Normal frames the profile is learned from.
+    ROAD: the training ambient captures only.
+    CAN-MIRGU: the training days + the normal parts of the TRAINING attack
+    recordings (more than ATTACK_MARGIN_S before the first / after the last forged
+    frame). MIRGU's attack recordings were made on a proving ground in October
+    2023, months after the normal days (May-June): some constant signals changed
+    (e.g. 0x507 00000001 -> 08000021), and a profile without October traffic
+    flags the normal frames of every attack recording. Post-test revision."""
+    amb = train[train["variant"] == "ambient"]
+    if DATASET != "mirgu":
+        return amb
+    parts = [amb]
+    for _, g in train[train["variant"] != "ambient"].groupby("capture", observed=True):
+        t = g.loc[g["label"] == 1, "t"]
+        parts.append(g[(g["t"] < t.min() - ATTACK_MARGIN_S) | (g["t"] > t.max() + ATTACK_MARGIN_S)] if len(t) else g)
+    out = pd.concat(parts)
+    print(f"  profile frames: {len(amb):,} from the training days + {len(out) - len(amb):,} normal frames "
+          f"from the training attack recordings", flush=True)
+    return out
+
+
 def build_profile() -> dict:
     t0 = time.perf_counter()
     train = load_split("train")
-    amb = add_gaps(train[train["variant"] == "ambient"].copy())
+    amb = add_gaps(profile_frames(train), deltas=False)
+    del train
 
     ids = {}
     seen = {}
@@ -307,7 +337,7 @@ def fold_profiles(base: dict) -> list[dict]:
     out = []
     train = None
     for i in range(2):
-        path = RESULTS_DIR / f"road_profile_fold{i + 1}.json"
+        path = RESULTS_DIR / f"{DATASET}_profile_fold{i + 1}.json"
         if path.exists() and path.stat().st_mtime >= PROFILE_PATH.stat().st_mtime:
             p = json.loads(path.read_text())
         else:

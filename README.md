@@ -54,6 +54,28 @@ cd ../../../ml/src && python road_data.py     # -> data/processed/road/, results
 Paper: Verma et al., "A comprehensive guide to CAN IDS data and introduction of the ROAD dataset",
 PLoS ONE 19(1), e0296879, 2024.
 
+## 2c. Get CAN-MIRGU (second car: independent check)
+
+CAN-MIRGU (CC BY 4.0): a 2016 electric car, 17 h of normal driving over 6 days and
+36 attack recordings with per-frame labels. The UCI repository's zip (doi
+10.24432/C5H911) was broken when we tried it (empty archive header, then zeros),
+so download the authors' Google Drive folder
+(linked from https://github.com/sampathrajapaksha/CAN-MIRGU) into `data/raw/mirgu/drive/`
+(5.5 GB of logs, ~49 files):
+
+```bash
+uv pip install --python .venv/bin/python gdown
+mkdir -p data/raw/mirgu/drive && cd data/raw/mirgu/drive
+gdown --folder --continue --timeout 60 --retries 20 "https://drive.google.com/drive/folders/1uUKLEu_tFVMy9WkDnf1rqqPwuQLQFwBL"
+cd ../../../.. && python ml/src/mirgu_data.py    # -> data/processed/mirgu/, results/mirgu/mirgu_report.md
+```
+
+(`--timeout` matters: without it a stalled Google Drive transfer waits forever.)
+
+Paper: Rajapaksha et al., "CAN-MIRGU: A Comprehensive CAN Bus Attack Dataset from
+Moving Vehicles for Intrusion Detection System Evaluation", VehicleSec 2024,
+doi 10.24432/C5H911.
+
 ROAD has no per-frame labels. `road_data.py` labels a frame as an attack when it has the target ID,
 lies inside the injection interval and matches the injected payload (from `capture_metadata.json`).
 The 4 accelerator captures have no injected frames and are skipped.
@@ -98,17 +120,46 @@ cd ml/src
 python road_data.py                  # parse the ROAD logs -> data/processed/road/
 python road_rules.py                 # rules only (and builds results/road_profile.json)
 python road_train_mlp.py             # train + int8 quantize + threshold on val
-python road_train_mlp.py --final     # score the test split (done once, results in RESULTS.md)
+python road_train_mlp.py --final     # score the test split (results in RESULTS.md)
+python synthetic_attacks.py          # model v2: preview the synthetic random-data attacks
 
 python mcu_model.py                  # check the C arithmetic of the int8 network against TFLite
 python export_c.py                   # write the firmware headers (tables, weights, self-test data)
 python check_c_detector.py           # C detector vs Python on every val/test frame (bit-exact)
 ```
 
+Which model these scripts train / export is set by `MODEL_VERSION` in
+`ml/src/common.py`: `"v2"` (on the chip now: + synthetic random-data attacks, see
+RESULTS.md section 5) or `"v1"` (the original model, files `results/road_mlp_*`).
+
 Firmware: `firmware/can_ids_fw` (STM32CubeIDE project). At boot it runs the detector
 self-test on 3,600 real ROAD frames and prints the result and the time per frame on
 the serial port (`/dev/ttyACM0`, 921600 baud), then reports incidents as JSON lines. PC side of the bus: `pc/adapter_test.py`
 (USB-CAN adapter, Robotell protocol, 1 Mbaud serial).
+
+Build and flash without the IDE (CubeIDE's compiler and STM32_Programmer_CLI):
+
+```bash
+bash firmware/build.sh               # -> firmware/can_ids_fw/build/can_ids_fw.elf
+STM32_Programmer_CLI -c port=SWD mode=UR reset=HWrst -w firmware/can_ids_fw/build/can_ids_fw.elf -v -rst
+```
+
+### CAN-MIRGU (second car)
+
+The same scripts, with `IDS_DATASET=mirgu` (results in `results/mirgu/`):
+
+```bash
+cd ml/src
+python mirgu_data.py                                  # logs -> data/processed/mirgu/ (+ data report)
+IDS_DATASET=mirgu python road_profile.py              # profile (Days 1-4 + normal parts of training attack recordings)
+IDS_DATASET=mirgu python road_train_mlp.py            # train + threshold on val (Day 5)
+IDS_DATASET=mirgu python mirgu_eval.py --final        # rules only vs ROAD v2 cross-car vs MIRGU model, val + test
+IDS_DATASET=mirgu python export_c.py                  # MIRGU headers for the firmware (plain export_c.py = ROAD)
+IDS_DATASET=mirgu python check_c_detector.py          # C vs Python, bit-exact
+cd ../.. && bash firmware/build.sh                    # then flash as above
+python pc/live_demo.py --dataset mirgu max_speedometer_attack
+python pc/live_demo.py --dataset mirgu --all-test --clean-minutes 10    # ~2 h
+```
 
 Live demo (PC replays a ROAD recording on the CAN bus, the Nucleo detects it):
 
@@ -117,4 +168,5 @@ python pc/live_demo.py --list                                  # recordings
 python pc/live_demo.py max_speedometer_attack_1_masquerade     # one attack, around the attack window
 python pc/live_demo.py --all-test                              # whole test split (~31 min), results table
 python pc/live_demo.py --latency                               # transport delay of the USB links alone
+python pc/live_attacks.py --all                                # DoS floods + fuzzing on real IDs (not in ROAD), ~2 min
 ```

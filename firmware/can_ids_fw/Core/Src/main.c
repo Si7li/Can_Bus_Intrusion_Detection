@@ -25,6 +25,9 @@
 #include <string.h>
 #include "ids_detector.h"
 #include "ids_selftest_data.h"
+#ifndef IDS_DATASET_NAME            /* headers exported before the CAN-MIRGU version */
+#define IDS_DATASET_NAME "ROAD"
+#endif
 
 /* USER CODE END Includes */
 
@@ -108,7 +111,7 @@ int _write(int file, char *ptr, int len)
   return len;
 }
 
-/* Detector self-test: run the C detector on real ROAD frames stored in flash
+/* Detector self-test: run the C detector on real frames (ROAD or CAN-MIRGU) stored in flash
    (ids_selftest_data.h) and compare every answer with what the Python pipeline
    gave for the same frames. Also measures the time per frame with the DWT
    cycle counter (1 cycle = 1/180 MHz = 5.6 ns). */
@@ -160,7 +163,7 @@ static void ids_selftest(void)
 
   uint32_t avg = (uint32_t)(c_sum / (n_known ? n_known : 1));
   uint32_t mhz = HAL_RCC_GetHCLKFreq() / 1000000u;
-  printf("\r\n=== Detector self-test: %u real ROAD frames ===\r\n", (unsigned)IDS_SELFTEST_N);
+  printf("\r\n=== Detector self-test: %u real %s frames ===\r\n", (unsigned)IDS_SELFTEST_N, IDS_DATASET_NAME);
   printf("  same model output as Python : %lu / %u\r\n", IDS_SELFTEST_N - bad_score, (unsigned)IDS_SELFTEST_N);
   printf("  same ALERT/WARNING as Python: %lu / %u\r\n", IDS_SELFTEST_N - bad_level, (unsigned)IDS_SELFTEST_N);
   printf("  forged frames at ALERT      : %lu / %lu, normal frames flagged: %lu\r\n",

@@ -1,4 +1,4 @@
-"""Live demo: replay a ROAD recording on the real CAN bus and watch the Nucleo detect it.
+"""Live demo: replay a ROAD (or CAN-MIRGU) recording on the real CAN bus and watch the Nucleo detect it.
 
     python pc/live_demo.py --list                                   # recordings you can replay
     python pc/live_demo.py max_speedometer_attack_1_masquerade      # 5 s before the attack .. 3 s after
@@ -6,6 +6,7 @@
     python pc/live_demo.py ambient_dyno_drive_basic_short --full    # clean drive: are there false alarms?
     python pc/live_demo.py --latency                                # transport delay alone (no detector delay)
     python pc/live_demo.py --all-test                               # every test recording (~35 min), table
+    python pc/live_demo.py --dataset mirgu --all-test               # CAN-MIRGU test split (flash the MIRGU firmware first)
 
 The PC plays the car: each frame is sent through the USB-CAN adapter at its
 original time. The Nucleo runs the detector on every frame and reports
@@ -34,23 +35,44 @@ ROAD = ROOT / "data" / "processed" / "road"
 RESULTS = ROOT / "results"
 BYTES = [f"b{i}" for i in range(8)]
 NUCLEO_BAUD = 921_600
+DATASET = {"name": "road", "data": ROAD, "results": RESULTS}    # changed by --dataset mirgu
+ROAD_CLEAN_TEST = ["ambient_dyno_drive_basic_short", "ambient_dyno_drive_benign_anomaly",
+                   "ambient_highway_street_driving_diagnostics"]
+
+
+def use_dataset(name: str):
+    import signals
+    DATASET.update(name=name, data=ROOT / "data" / "processed" / name,
+                   results=RESULTS if name == "road" else RESULTS / name)
+    signals.use_dataset(name)
 
 
 # ------------------------------------------------------------------ data
 def all_captures() -> list[str]:
-    return sorted(p.stem for p in ROAD.glob("*/*.parquet"))
+    return sorted(p.stem for p in DATASET["data"].glob("*/*.parquet"))
 
 
 def is_test(name: str) -> bool:
-    """Same split as ml/src/road_features.py: attack instance 1 and coolant are test."""
+    """Same split as ml/src: ROAD attack instance 1 and coolant are test; CAN-MIRGU see mirgu_split.py."""
+    if DATASET["name"] == "mirgu":
+        sys.path.insert(0, str(ROOT / "ml" / "src"))
+        import mirgu_split
+        return (mirgu_split.ambient_split(name) if name.startswith("benign_")
+                else mirgu_split.attack_split(name)) == "test"
     return name.startswith("max_engine_coolant_temp") or re.search(r"_attack_1(_masquerade)?$", name) is not None
 
 
+def clean_test_drives() -> list[str]:
+    if DATASET["name"] == "mirgu":
+        return [n for n in all_captures() if n.startswith("benign_") and is_test(n)]
+    return ROAD_CLEAN_TEST
+
+
 def load(name: str) -> pd.DataFrame:
-    path = next(ROAD.glob(f"*/{name}.parquet"), None)
+    path = next(DATASET["data"].glob(f"*/{name}.parquet"), None)
     if path is None:
         sys.exit(f"unknown recording {name!r}; see --list")
-    return pd.read_parquet(path, columns=["t", "id", "label"] + BYTES)
+    return pd.read_parquet(path, columns=["t", "id", "dlc", "label"] + BYTES)
 
 
 def window(df: pd.DataFrame, full: bool, before: float = 5.0, after: float = 3.0) -> pd.DataFrame:
@@ -118,7 +140,8 @@ class Monitor(threading.Thread):
 # ------------------------------------------------------------------ replay
 def replay(df: pd.DataFrame, port: str) -> dict:
     """Send every frame at its recorded time. Returns the actual send time of each frame."""
-    packets = [road_frame(int(i), bytes(row)) for i, row in zip(df["id"], df[BYTES].to_numpy(np.uint8))]
+    dlc = df["dlc"].to_numpy() if "dlc" in df.columns else np.full(len(df), 8)
+    packets = [road_frame(int(i), bytes(row[:n])) for i, row, n in zip(df["id"], df[BYTES].to_numpy(np.uint8), dlc)]
     times = (df["t"] - df["t"].iloc[0]).to_numpy()
     sent = np.empty(len(times))
     with serial.Serial(port, SERIAL_BAUD, timeout=0) as s:
@@ -172,15 +195,20 @@ def summarize(name: str, df: pd.DataFrame, rp: dict, events: list) -> dict:
     for inc in incidents:
         inc["end"] = inc["end"] if inc["end"] is not None else inc["start"]
         inc["during_attack"] = bool(attack and inc["end"] >= t1 and inc["start"] <= t2 + 1.0)
+        # an ALERT raised BEFORE the first forged frame is a false alarm, even when its
+        # incident lasts into the attack: the Nucleo then sends nothing new for the attack
+        # (it only reports a start or an escalation), so the attack cannot be credited
+        inc["early"] = inc["during_attack"] and inc["first_alert"] is not None and inc["first_alert"] < t1
 
-    hits = [i for i in incidents if i["during_attack"] and i["level"] == "ALERT"]
+    hits = [i for i in incidents if i["during_attack"] and i["level"] == "ALERT" and not i["early"]]
     first = min((i["first_alert"] for i in hits), default=None)
-    false = [i for i in incidents if not i["during_attack"]]
+    false = [i for i in incidents if not i["during_attack"] or i["early"]]
+    masked = any(i["early"] for i in incidents)
     status = [ev for _, ev in events if ev.get("type") == "status" and ev["fps"] > 0]
     return {
         "recording": name, "frames": int(len(df)), "forged_frames": int(lab.sum()),
         "seconds": round(float(df["t"].iloc[-1] - df["t"].iloc[0]), 1),
-        "detected": bool(hits) if attack else None,
+        "detected": (True if hits else "masked" if masked else False) if attack else None,
         "delay_ms": round((first - t1) * 1000) if first is not None else None,
         "attack_described_as": hits[0]["what"] if hits else None,
         "false_alert_incidents": sum(i["level"] == "ALERT" for i in false),
@@ -197,7 +225,8 @@ def summarize(name: str, df: pd.DataFrame, rp: dict, events: list) -> dict:
 def print_summary(r: dict):
     print(f"\n=== {r['recording']}: {r['frames']:,} frames in {r['seconds']} s, {r['forged_frames']} forged ===")
     if r["detected"] is not None:
-        print(f"  attack detected (ALERT): {'YES' if r['detected'] else 'NO'}"
+        verdict = {True: "YES", False: "NO", "masked": "UNKNOWN (a false ALERT started before the attack and was still open)"}
+        print(f"  attack detected (ALERT): {verdict[r['detected']]}"
               + (f", {r['delay_ms']} ms after the first forged frame" if r["delay_ms"] is not None else ""))
         if r["attack_described_as"]:
             print(f"  described as: {r['attack_described_as']}")
@@ -208,8 +237,10 @@ def print_summary(r: dict):
     print(f"  replay timing: 99% of frames sent within {r['replay_late_ms_p99']} ms of their recorded time")
 
 
-def run_one(name: str, full: bool, args, verbose: bool = True) -> dict:
+def run_one(name: str, full: bool, args, verbose: bool = True, max_minutes: float | None = None) -> dict:
     df = window(load(name), full)
+    if max_minutes is not None:
+        df = df[df["t"] - df["t"].iloc[0] <= 60 * max_minutes]
     mon = Monitor(args.nucleo, verbose)
     mon.start()
     time.sleep(1.5)                     # bus idle > 1 s: the Nucleo starts with a fresh history
@@ -258,9 +289,15 @@ def main():
     ap.add_argument("--all-test", action="store_true",
                     help="every test-split recording (attacks + clean drives, ~35 min), then a table")
     ap.add_argument("--latency", action="store_true", help="measure the transport delay alone (unknown-ID frames)")
+    ap.add_argument("--dataset", choices=["road", "mirgu"], default="road",
+                    help="which recordings (the Nucleo must run the matching firmware)")
+    ap.add_argument("--clean-minutes", type=float, default=None,
+                    help="--all-test: replay only the first N minutes of each clean drive "
+                         "(CAN-MIRGU's clean test day is long; the offline test covers all of it)")
     ap.add_argument("--can", default="/dev/ttyUSB0", help="USB-CAN adapter")
     ap.add_argument("--nucleo", default="/dev/ttyACM0", help="Nucleo serial port")
     args = ap.parse_args()
+    use_dataset(args.dataset)
 
     if args.list:
         for n in all_captures():
@@ -270,11 +307,11 @@ def main():
         latency(args)
         return
     if args.all_test:
-        names = [n for n in all_captures() if is_test(n) and "accelerator" not in n]
-        names += ["ambient_dyno_drive_basic_short", "ambient_dyno_drive_benign_anomaly",
-                  "ambient_highway_street_driving_diagnostics"]          # clean test drives (false alarms)
+        clean = clean_test_drives()                                      # clean test drives (false alarms)
+        names = [n for n in all_captures() if is_test(n) and "accelerator" not in n and n not in clean]
         rows = [run_one(n, True, args, verbose=False) for n in names]
-        out = RESULTS / "live_replay_test.json"
+        rows += [run_one(n, True, args, verbose=False, max_minutes=args.clean_minutes) for n in clean]
+        out = DATASET["results"] / "live_replay_test.json"
         out.write_text(json.dumps(rows, indent=2))
         print(f"\n{'recording':42s} {'detected':>8s} {'delay ms':>8s} {'false A/W':>9s} {'CPU %':>6s} {'overflow':>8s}")
         for r in rows:

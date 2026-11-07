@@ -17,8 +17,9 @@ import re
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import union_categoricals
 
-from common import ROAD_PROCESSED_DIR
+from common import DATASET, DATASET_PROCESSED_DIR, RANGE_STRONG_ALL_CHECKED
 
 BYTES = [f"b{i}" for i in range(8)]
 DELTAS = [f"d{i}" for i in range(8)]
@@ -47,10 +48,17 @@ def attack_split(name: str) -> str:
     return INSTANCE_SPLIT[m.group(1)]
 
 
+if DATASET == "mirgu":          # CAN-MIRGU: split fixed in mirgu_split.py
+    import mirgu_split
+    AMBIENT_SPLIT = {p.stem: mirgu_split.ambient_split(p.stem)
+                     for p in sorted((DATASET_PROCESSED_DIR / "ambient").glob("*.parquet"))}
+    attack_split = mirgu_split.attack_split  # noqa: F811
+
+
 def captures(split: str) -> list[tuple[str, str]]:
     """[(subfolder, capture_name)] for one split."""
     out = [("ambient", n) for n, s in AMBIENT_SPLIT.items() if s == split]
-    for p in sorted((ROAD_PROCESSED_DIR / "attacks").glob("*.parquet")):
+    for p in sorted((DATASET_PROCESSED_DIR / "attacks").glob("*.parquet")):
         if attack_split(p.stem) == split:
             out.append(("attacks", p.stem))
     return out
@@ -59,28 +67,51 @@ def captures(split: str) -> list[tuple[str, str]]:
 def load_split(split: str) -> pd.DataFrame:
     parts = []
     for sub, name in captures(split):
-        df = pd.read_parquet(ROAD_PROCESSED_DIR / sub / f"{name}.parquet")
-        df["capture"] = name
-        df["variant"] = ("ambient" if sub == "ambient"
-                         else "masquerade" if name.endswith("_masquerade") else "fabrication")
+        df = pd.read_parquet(DATASET_PROCESSED_DIR / sub / f"{name}.parquet")
+        df["capture"] = pd.Categorical.from_codes(np.zeros(len(df), np.int8), [name])
+        if "variant" not in df.columns:     # ROAD: from the name (MIRGU stores it)
+            df["variant"] = ("ambient" if sub == "ambient"
+                             else "masquerade" if name.endswith("_masquerade") else "fabrication")
+        for c in ("attack", "variant"):
+            df[c] = df[c].astype("category")
         parts.append(df)
-    df = pd.concat(parts, ignore_index=True)
-    df["capture"] = df["capture"].astype("category")
-    df["attack"] = df["attack"].astype("category")
+    # categories sorted by name, as astype("category") on strings would do (keeps ROAD's row order)
+    cats = {c: union_categoricals([p[c] for p in parts], sort_categories=True)
+            for c in ("capture", "attack", "variant")}
+    df = pd.concat([p.drop(columns=list(cats)) for p in parts], ignore_index=True)
+    for c, v in cats.items():
+        df[c] = v
     return df
 
 
 # ---------------------------------------------------------------- features
-def add_gaps(df: pd.DataFrame) -> pd.DataFrame:
+def add_gaps(df: pd.DataFrame, deltas: bool = True) -> pd.DataFrame:
     """dt = seconds since the previous frame with the same ID in the same capture,
-    d0..d7 = byte change since that frame (NaN for the first frame of an ID)."""
+    d0..d7 = byte change since that frame (NaN for the first frame of an ID).
+    d is float32 (whole numbers -255..255, exact); deltas=False skips it (profile)."""
     df = df.sort_values(["capture", "t"], kind="stable")
     g = df.groupby(["capture", "id"], observed=True, sort=False)
     df["dt"] = g["t"].diff()
-    prev = g[BYTES].shift(1)
-    for b, d in zip(BYTES, DELTAS):
-        df[d] = df[b].astype(np.int16) - prev[b]   # float, NaN on first frame
+    if deltas:
+        for b, d in zip(BYTES, DELTAS):
+            df[d] = (df[b].astype(np.float32) - g[b].shift(1).astype(np.float32)).astype(np.float32)
     return df
+
+
+def chunks(df: pd.DataFrame, max_frames: int = 3_000_000):
+    """Split df into groups of whole captures (in add_gaps order), at most ~max_frames
+    each, to bound memory. Exact: every per-frame value (gaps, features, rules,
+    smoothing) depends only on the frame's own capture."""
+    groups = [g for _, g in df.groupby("capture", observed=True, sort=True)]
+    cur, n = [], 0
+    for g in groups:
+        if cur and n + len(g) > max_frames:
+            yield pd.concat(cur)
+            cur, n = [], 0
+        cur.append(g)
+        n += len(g)
+    if cur:
+        yield pd.concat(cur)
 
 
 def novelty(df: pd.DataFrame, profile: dict, modes: tuple = (1, 2)) -> np.ndarray:
@@ -177,14 +208,29 @@ def make_features(df: pd.DataFrame, profile: dict) -> tuple[np.ndarray, list[str
 def training_frames(profile: dict, n_benign: int, seed: int) -> pd.DataFrame:
     """Training split, known IDs only: every attack frame + a random sample of
     benign frames (24M benign frames are far more than needed). Shared by the
-    RF and the MLP so both see exactly the same data."""
-    train = add_gaps(load_split("train"))
-    train = train[train["id"].isin(profile["ids"].keys())]
-    lab = train["label"].to_numpy()
+    RF and the MLP so both see exactly the same data.
+    CAN-MIRGU (~95M training frames): sampled capture by capture, each capture
+    contributing in proportion to its benign frames (same result in expectation,
+    bounded memory)."""
+    train = load_split("train")
+    if DATASET == "road":
+        train = add_gaps(train)
+        train = train[train["id"].isin(profile["ids"].keys())]
+        lab = train["label"].to_numpy()
+        rng = np.random.default_rng(seed)
+        benign = np.flatnonzero(lab == 0)
+        benign = rng.choice(benign, size=min(n_benign, len(benign)), replace=False)
+        return train.iloc[np.sort(np.concatenate([np.flatnonzero(lab == 1), benign]))]
+    known = train["id"].isin(profile["ids"].keys()).to_numpy()
+    rate = min(1.0, n_benign / max(1, int((known & (train["label"].to_numpy() == 0)).sum())))
     rng = np.random.default_rng(seed)
-    benign = np.flatnonzero(lab == 0)
-    benign = rng.choice(benign, size=min(n_benign, len(benign)), replace=False)
-    return train.iloc[np.sort(np.concatenate([np.flatnonzero(lab == 1), benign]))]
+    parts = []
+    for c in chunks(train):
+        c = add_gaps(c)
+        c = c[c["id"].isin(profile["ids"].keys())]
+        keep = (c["label"].to_numpy() == 1) | (rng.random(len(c)) < rate)
+        parts.append(c[keep])
+    return pd.concat(parts)
 
 
 def training_features(sel: pd.DataFrame, profile: dict, folds: list[dict], fold_captures: list[list[str]]):
@@ -214,10 +260,26 @@ STRONG_SURPRISE_BITS = 8.0
 
 def strong_evidence(df: pd.DataFrame, profile: dict) -> np.ndarray:
     """Per frame: is there evidence beyond 'a value never seen before'?
-    - a byte outside its normal range + margin (an impossible value, e.g. speed 0xFF)
+    - a byte outside its normal range + margin (an impossible value, e.g. speed 0xFF);
+      ROAD: only bytes checked by range; CAN-MIRGU: every checked byte
+      (common.RANGE_STRONG_ALL_CHECKED)
     - a broken signal pair (byte very unlikely given its partner, > 8 bits)
     Model alerts backed by this evidence are ALERTs; the others are WARNINGs
     (possibly a normal car state that the training drives never contained)."""
-    outside = novelty(df, profile, modes=(2,)).any(axis=1)
+    outside = outside_range(df, profile) if RANGE_STRONG_ALL_CHECKED else novelty(df, profile, modes=(2,)).any(axis=1)
     broken_pair = context_surprise(df, profile).max(axis=1) > STRONG_SURPRISE_BITS
     return outside | broken_pair
+
+
+def outside_range(df: pd.DataFrame, profile: dict) -> np.ndarray:
+    """Per frame: a byte with a novelty check (exact set or range) is beyond the
+    seen range + margin of its ID (unknown IDs: False)."""
+    ids = sorted(profile["ids"])
+    mode = np.array([profile["novelty_mode"][a] for a in ids], np.int8)
+    lo = np.array([profile["ids"][a]["range_lo"] for a in ids], np.int16)
+    hi = np.array([profile["ids"][a]["range_hi"] for a in ids], np.int16)
+    k = df["id"].map({a: i for i, a in enumerate(ids)})
+    known = k.notna().to_numpy()
+    k = k.fillna(0).astype(int).to_numpy()
+    v = df[BYTES].to_numpy().astype(np.int16)
+    return ((mode[k] >= 1) & ((v < lo[k]) | (v > hi[k]))).any(axis=1) & known

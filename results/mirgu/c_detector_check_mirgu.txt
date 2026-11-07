@@ -1,0 +1,31 @@
+
+=== val: 14,364,193 frames (14,363,654 with a known ID) ===
+  model inputs (27 int8) identical : 100.0000%  (0 frames differ)
+  model output (int8) identical    : 100.0000%
+  ALERT/WARNING level identical    : 100.0000%  (0 frames differ)
+
+=== test: 23,307,756 frames (23,298,321 with a known ID) ===
+  model inputs (27 int8) identical : 100.0000%  (0 frames differ)
+  model output (int8) identical    : 100.0000%
+  ALERT/WARNING level identical    : 100.0000%  (0 frames differ)
+
+=== C DETECTOR (exact-us timestamps) - test ===
+attack / variant                            frames   ALERT  A or W  detected  delay ms
+ems_replay / fabrication                     6,406   0.999   0.999       1/1        40
+ems_replay_long / fabrication               40,759   1.000   1.000       1/1        40
+fuzzing_random_ids / fabrication             7,546   0.988   0.988       1/1         0
+max_speedometer / fabrication                2,249   0.397   0.967       1/1       244
+multiple_attacks / fabrication              47,924   0.959   0.964       2/2        40
+parking_break / fabrication                  1,076   0.996   0.996       1/1        81
+random_all8 / masquerade                     2,024   0.972   0.972     14/14       800
+random_injected / fabrication                3,056   0.785   0.914     13/13        80
+random_some / masquerade                     2,536   0.886   0.888     13/13        81
+reverse_speedometer_fuzzing / fabrication    1,182   0.896   0.903       1/1        80
+steering_angle_replay / fabrication         10,096   1.000   1.000       1/1        40
+wiper_warning / fabrication                    327   0.988   0.988       1/1       797
+wiper_warning / masquerade                     327   0.000   0.000       0/1         -
+
+all attack frames caught : ALERT 0.9609 | ALERT or WARNING 0.9764
+clean drives (94.9 min):
+  ALERT   : 3 events (1.9/h), 0.25 frames/min  {'benign_day6_file1_part3': 17, 'benign_day6_file1_part2': 7}
+  WARNING : 4 events (2.53/h), 0.6 frames/min  {'benign_day6_file1_part1': 50, 'benign_day6_file1_part4': 7}

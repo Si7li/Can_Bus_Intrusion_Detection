@@ -1,0 +1,13 @@
+
+��������������
+CAN IDS firmware booted, core clock 180000000 Hz, APB1 45000000 Hz
+
+=== Detector self-test: 3600 real CAN-MIRGU frames ===
+  same model output as Python : 3600 / 3600
+  same ALERT/WARNING as Python: 3600 / 3600
+  forged frames at ALERT      : 56 / 149, normal frames flagged: 107
+  time per frame (rules + features + int8 MLP): avg 11577 cycles = 64.31 us, min 10597, max 11864 cycles
+  of which int8 MLP alone: 8865 cycles = 49.25 us
+  -> SELF-TEST PASSED (bit-exact)
+
+{"type":"info","msg":"CAN1 started at 500 kbit/s, detector running on every frame"}

@@ -1,0 +1,246 @@
+{
+  "alert": {
+    "per_attack": {
+      "ems_replay / fabrication": {
+        "attack_frames": 6406,
+        "recall": 0.9994,
+        "captures_detected": "1/1",
+        "median_delay_ms": 39.9
+      },
+      "ems_replay_long / fabrication": {
+        "attack_frames": 40759,
+        "recall": 0.9997,
+        "captures_detected": "1/1",
+        "median_delay_ms": 40.0
+      },
+      "fuzzing_random_ids / fabrication": {
+        "attack_frames": 7546,
+        "recall": 0.9883,
+        "captures_detected": "1/1",
+        "median_delay_ms": 0.0
+      },
+      "max_speedometer / fabrication": {
+        "attack_frames": 2249,
+        "recall": 0.3971,
+        "captures_detected": "1/1",
+        "median_delay_ms": 244.1
+      },
+      "multiple_attacks / fabrication": {
+        "attack_frames": 47924,
+        "recall": 0.9636,
+        "captures_detected": "2/2",
+        "median_delay_ms": 39.8
+      },
+      "parking_break / fabrication": {
+        "attack_frames": 1076,
+        "recall": 1.0,
+        "captures_detected": "1/1",
+        "median_delay_ms": 0.0
+      },
+      "random_all8 / masquerade": {
+        "attack_frames": 2024,
+        "recall": 0.9718,
+        "captures_detected": "14/14",
+        "median_delay_ms": 800.1
+      },
+      "random_injected / fabrication": {
+        "attack_frames": 3056,
+        "recall": 0.804,
+        "captures_detected": "13/13",
+        "median_delay_ms": 80.0
+      },
+      "random_some / masquerade": {
+        "attack_frames": 2536,
+        "recall": 0.8707,
+        "captures_detected": "13/13",
+        "median_delay_ms": 79.8
+      },
+      "reverse_speedometer_fuzzing / fabrication": {
+        "attack_frames": 1182,
+        "recall": 0.9162,
+        "captures_detected": "1/1",
+        "median_delay_ms": 80.0
+      },
+      "steering_angle_replay / fabrication": {
+        "attack_frames": 10096,
+        "recall": 0.9996,
+        "captures_detected": "1/1",
+        "median_delay_ms": 39.8
+      },
+      "wiper_warning / fabrication": {
+        "attack_frames": 327,
+        "recall": 0.9878,
+        "captures_detected": "1/1",
+        "median_delay_ms": 797.4
+      },
+      "wiper_warning / masquerade": {
+        "attack_frames": 327,
+        "recall": 0.0,
+        "captures_detected": "0/1",
+        "median_delay_ms": null
+      }
+    },
+    "recall_all_attacks": 0.9632,
+    "fpr": 0.05203567833456013,
+    "fpr_clean_drives": 2.3353204964657844e-06,
+    "benign_flagged_in_attack_captures": 1206280,
+    "false_alarms_per_min_ambient": 0.25,
+    "ambient_minutes": 94.9,
+    "benign_frames": 23182248
+  },
+  "alert_or_warning": {
+    "per_attack": {
+      "ems_replay / fabrication": {
+        "attack_frames": 6406,
+        "recall": 0.9994,
+        "captures_detected": "1/1",
+        "median_delay_ms": 39.9
+      },
+      "ems_replay_long / fabrication": {
+        "attack_frames": 40759,
+        "recall": 0.9997,
+        "captures_detected": "1/1",
+        "median_delay_ms": 40.0
+      },
+      "fuzzing_random_ids / fabrication": {
+        "attack_frames": 7546,
+        "recall": 0.9887,
+        "captures_detected": "1/1",
+        "median_delay_ms": 0.0
+      },
+      "max_speedometer / fabrication": {
+        "attack_frames": 2249,
+        "recall": 0.8213,
+        "captures_detected": "1/1",
+        "median_delay_ms": 54.6
+      },
+      "multiple_attacks / fabrication": {
+        "attack_frames": 47924,
+        "recall": 0.9727,
+        "captures_detected": "2/2",
+        "median_delay_ms": 34.8
+      },
+      "parking_break / fabrication": {
+        "attack_frames": 1076,
+        "recall": 1.0,
+        "captures_detected": "1/1",
+        "median_delay_ms": 0.0
+      },
+      "random_all8 / masquerade": {
+        "attack_frames": 2024,
+        "recall": 0.9748,
+        "captures_detected": "14/14",
+        "median_delay_ms": 800.1
+      },
+      "random_injected / fabrication": {
+        "attack_frames": 3056,
+        "recall": 0.9702,
+        "captures_detected": "13/13",
+        "median_delay_ms": 59.8
+      },
+      "random_some / masquerade": {
+        "attack_frames": 2536,
+        "recall": 0.8738,
+        "captures_detected": "13/13",
+        "median_delay_ms": 79.8
+      },
+      "reverse_speedometer_fuzzing / fabrication": {
+        "attack_frames": 1182,
+        "recall": 0.9264,
+        "captures_detected": "1/1",
+        "median_delay_ms": 80.0
+      },
+      "steering_angle_replay / fabrication": {
+        "attack_frames": 10096,
+        "recall": 0.9996,
+        "captures_detected": "1/1",
+        "median_delay_ms": 39.8
+      },
+      "wiper_warning / fabrication": {
+        "attack_frames": 327,
+        "recall": 0.9878,
+        "captures_detected": "1/1",
+        "median_delay_ms": 797.4
+      },
+      "wiper_warning / masquerade": {
+        "attack_frames": 327,
+        "recall": 0.0,
+        "captures_detected": "0/1",
+        "median_delay_ms": null
+      }
+    },
+    "recall_all_attacks": 0.9785,
+    "fpr": 0.06848770662793358,
+    "fpr_clean_drives": 0.0013790067531630457,
+    "benign_flagged_in_attack_captures": 1573527,
+    "false_alarms_per_min_ambient": 149.35,
+    "ambient_minutes": 94.9,
+    "benign_frames": 23182248
+  },
+  "clean_drives": {
+    "hours": 1.582,
+    "alert_events": 3,
+    "warning_events": 1247,
+    "alert_events_per_hour": 1.9,
+    "warning_events_per_hour": 788.49,
+    "alert_frames_per_min": 0.25,
+    "warning_frames_per_min": 149.1,
+    "warning_frames_by_capture": {
+      "benign_day6_file1_part1": 9010,
+      "benign_day6_file1_part4": 5138
+    },
+    "alert_frames_by_capture": {
+      "benign_day6_file1_part3": 17,
+      "benign_day6_file1_part2": 7
+    }
+  },
+  "suspension": {
+    "id_07f_suspension_attack": {
+      "suspended_id": "07F",
+      "window_s": 134.0,
+      "alert_incidents_inside": 0,
+      "warning_incidents_inside": 18,
+      "alert_incidents_outside": 0,
+      "warning_incidents_outside": 54
+    },
+    "id_160_suspension_attack": {
+      "suspended_id": "160",
+      "window_s": 90.0,
+      "alert_incidents_inside": 0,
+      "warning_incidents_inside": 29,
+      "alert_incidents_outside": 0,
+      "warning_incidents_outside": 69
+    },
+    "id_371_suspension_attack": {
+      "suspended_id": "371",
+      "window_s": 90.0,
+      "alert_incidents_inside": 0,
+      "warning_incidents_inside": 23,
+      "alert_incidents_outside": 0,
+      "warning_incidents_outside": 54
+    },
+    "id_386_suspension_attack": {
+      "suspended_id": "386",
+      "window_s": 90.0,
+      "alert_incidents_inside": 0,
+      "warning_incidents_inside": 31,
+      "alert_incidents_outside": 0,
+      "warning_incidents_outside": 65
+    },
+    "id_541_suspension_attack": {
+      "suspended_id": "541",
+      "window_s": 120.0,
+      "alert_incidents_inside": 0,
+      "warning_incidents_inside": 23,
+      "alert_incidents_outside": 0,
+      "warning_incidents_outside": 41
+    }
+  },
+  "attack_recordings_outside_window": {
+    "minutes": 54.7,
+    "normal_frames": 6269478,
+    "alert_frames": 366999,
+    "alert_incidents": 40,
+    "warning_incidents": 632
+  }
+}

@@ -2,6 +2,11 @@
 
 All numbers are measured, not estimated. Reproduce with the commands in the README.
 
+Sections 2–4 describe model **v1**. Section 5 describes model **v2**, trained after
+the live tests found a gap in v1. Section 6 repeats everything on a second car,
+**CAN-MIRGU**: the MIRGU model is the one now running on the chip (the ROAD
+firmware is restored with `python ml/src/export_c.py` + `bash firmware/build.sh`).
+
 ## 1. CICIoV2024: why it cannot evaluate an AI detector
 
 | | |
@@ -154,5 +159,278 @@ continuous stream. The adapter buffers its serial input and flushes on an idle
 timeout. In a vehicle the Nucleo sits directly on the bus and this transport delay
 does not exist.
 
-Files: `live_replay_test.json`, `live_replay_log.txt` (the PC console output: every
+Files: `live_replay_test_v1.json`, `live_replay_log_v1.txt` (the PC console output: every
 Nucleo report in readable form), `live_latency.txt`.
+
+### Attacks that ROAD does not contain (generated live)
+
+`python pc/live_attacks.py --all`: the PC plays the car (14 s of the clean test
+drive `ambient_dyno_drive_basic_short`, no alert when replayed alone) and the
+attacker (seconds 5–8). Fixed random seed; the detector is unchanged.
+
+| Attack | Detected live (ALERT) | Delay at the PC | Bus load | Detector CPU | Frames lost |
+|---|---|---:|---:|---:|---:|
+| **DoS**, flood of unknown ID 0x000 (3 s) | yes, unknown-ID rule | 101 ms | 3,801 frames/s (≈ full bus) | 15.2% | 0 |
+| **DoS**, flood of the car's own top-priority ID 0x006 with its real data | yes, rate rule | 12 ms | 3,800 frames/s | **24.1%** | 0 |
+| **Fuzzing on real IDs**: random data on random whitelisted IDs, 1 per ms, on top of normal traffic | yes, rate rule (0x522 first) | 104 ms | 3,393 frames/s | 21.6% | 0 |
+| **Fuzzing masquerade**: one real ID (0x00E, 10 ms period, never attacked in ROAD) carries random data, timing unchanged | **no** (no ALERT, no WARNING) | — | 2,393 frames/s | 15.2% | 0 |
+
+During a DoS the car's own frames cannot win arbitration against the flood, so
+they are left out of the attack window. One USB-CAN adapter sends everything,
+so real arbitration between two senders is not reproduced; what the Nucleo sees
+(a full bus of flood frames) is.
+
+- **The Nucleo keeps up with a full bus.** 3,800 frames/s through the whole
+  detector (rules + features + MLP on every frame) used 24.1% CPU (predicted 25%
+  in section 3), queue at most 8 of 256, no frame lost, no CAN error.
+- **Random data at normal timing is missed.** Python's reference detector gives
+  the same answer as the chip on these frames: every forged 0x00E frame has most
+  bytes at never-seen values (novelty count at its maximum), but the model's
+  score stays near 0 on 90% of them, so 5 of 10 is never reached. The MLP learned
+  ROAD's attacks, where one or two bytes of an otherwise real frame are changed;
+  a frame where everything is new does not look like them. This is a limit of
+  learning from a few attack types; a plain rule ("several bytes never seen at
+  once") would catch it, but it is not part of the evaluated detector.
+- **ALERTs continue after a flood on a slow ID.** The 5-of-10 history counts
+  frames, not time: 0x006 is sent once per second, so after the flood its next
+  normal frames are still reported as ALERT until 6 normal frames have arrived
+  (3 short ALERT incidents in the 6 s after the attack, counted as false by the
+  script). Fuzzing on real IDs shows the same tail on its slow IDs.
+
+Files: `live_attacks_v1.json`, `live_attacks_log_v1.txt`.
+
+## 5. Model v2: random data on real IDs (post-test revision)
+
+**Why.** The live test `fuzz_masquerade` (section 4) showed that v1 misses a real
+ID carrying random data at its normal timing. v1 only learned ROAD's attacks, where
+one or two bytes of an otherwise real frame change. **This revision was made after
+the test split had been used**, and is reported as such, next to v1.
+
+**What changed.** Only the training data and the weights. Same 27 features, same
+27 → 32 → 16 → 1 network (1,441 parameters, 5,232-byte int8 model), same C code,
+same rules and severity. Training also gets synthetic attacks
+(`ml/src/synthetic_attacks.py`): 20 s pieces of normal drives with one attack on one
+ID: all 8 bytes random / 3–5 random bytes (masquerade) / extra frames with 3–8
+random bytes (fabrication). Nothing is shared between splits: training attacks use
+training drives and 70% of the IDs; val and test attacks use their own drives and
+their own 15% of the IDs each. **0x00E (the live test) is a test ID, never attacked
+in training.**
+
+**How it was decided, in order (nothing hidden):**
+1. On val, a first version with 2–4 random bytes raised the WARNINGs on the clean
+   val drive from 23.5 to 147 frames/min: normal driving has frames with 1–2 new
+   values (1,902 of 1.72M) but almost never 3+ (4). Changed to 3+ random bytes.
+2. v2 was evaluated on test with an extra severity rule "3+ never-seen bytes in one
+   frame = ALERT", calibrated on val. **It failed: 36 false ALERT incidents on the
+   clean test drives (v1: 1).** The "benign anomaly" drive has 1,232 such frames;
+   the 12.5 min of val drives were too short to show how common they are.
+3. The rule was removed **after** that test run (v2 = v1's severity rule). The final
+   v2 numbers below are therefore **test-informed**: they need confirmation on data
+   not used so far (planned: a second dataset, CAN-MIRGU).
+
+### Test split (ROAD test attacks + 40 synthetic attacks on held-out IDs and drives)
+| | v1 | v2 + 3-byte rule (failed) | **v2 (on the chip)** |
+|---|---:|---:|---:|
+| ROAD test attack frames at ALERT | 99.23% | 99.23% | **99.23%** |
+| Random-data attacks detected (ALERT or WARNING) | 18 / 40 | 38 / 40 | **38 / 40** |
+| … of which at ALERT | 11 / 40 | 28 / 40 | 17 / 40 |
+| Random-data attack frames flagged (ALERT or WARNING) | 23.7% | 94.6% | **94.6%** |
+| Clean test drives (22.9 min): ALERT incidents | 1 | **36** | **1** |
+| Clean test drives: WARNING incidents | 246 | 149 | 95 |
+| Clean test drives: WARNING frames/min | 51 | 418 | **472** |
+
+Val (chosen there, before any test): random-data attacks detected 11/40 (v1) → 40/40
+(v2); clean val drive: 1 ALERT incident for both, WARNING incidents 1 → 3.
+
+**On the chip:** C vs Python on every val and test frame including the synthetic
+attacks (10.5M frames): 100% identical inputs, outputs and levels
+(`c_detector_check_v2.txt`); boot self-test 3,600/3,600, still 63 µs per frame
+(`stm32_selftest_v2.txt`).
+
+### Live, with v2 on the chip (`python pc/live_attacks.py --all`)
+| Attack | v1 | **v2** | Delay at the PC |
+|---|---|---|---:|
+| DoS, unknown ID 0x000 | ALERT | ALERT | 7 ms |
+| DoS, real ID 0x006 | ALERT | ALERT | 11 ms |
+| Fuzzing on real IDs (random IDs from the whitelist) | ALERT | ALERT | 114 ms |
+| **Fuzzing masquerade, random data on 0x00E** | **missed** | **ALERT** | 107 ms |
+
+The Nucleo's description of the 0x00E attack: 7 of its 8 bytes carry never-seen
+values, and byte 5 contradicts its partner signal (0x4FD byte 2), which is the strong
+evidence that makes it an ALERT. Files: `live_attacks.json`, `live_attacks_log.txt`.
+
+### Live replay of the whole test split with v2 (`python pc/live_demo.py --all-test`)
+4,117,443 frames in 31 minutes, same setup as section 4.
+
+| | v1 live | **v2 live** |
+|---|---:|---:|
+| ROAD test attacks detected (ALERT) | 10 / 11 | **10 / 11** (same; coolant masquerade missed) |
+| False incidents in the attack recordings | 0 | **0** |
+| Clean drives: ALERT incidents | 1 | **1** (the same one) |
+| Clean drives: WARNING incidents | 233 | **68** (basic short 1, benign anomaly 66, diagnostics 1) |
+| Detector CPU max / queue max / frames lost / CAN errors | 15.9% / 11 / 0 / 0 | 15.9% / 16 / 0 / 0 |
+
+Fewer WARNING incidents but longer ones: v2 warns continuously during long
+harmless states (0x6FC in "basic short", the diagnostic session), so frames that
+v1 reported as 231 separate incidents now form one long incident. A WARNING LED
+would stay lit through such a state. Files: `live_replay_test.json`, `live_replay_log.txt`.
+
+### What v2 costs (honest reading)
+- **More WARNING frames on unusual drives (×9 frames, fewer incidents).** Long harmless
+  states with never-seen values (0x5E1 in "benign anomaly", 0x6FC in "basic short")
+  look like random data to the model. They are reported as "unusual", not "attack".
+  A never-seen harmless state and random data are close in these features; more
+  normal driving of the target car is the real fix.
+- **Random data is often only a WARNING** (21 of the 38 detected attacks): ALERT needs
+  strong evidence (impossible value or broken signal pair), which random data does
+  not always produce.
+- **Test-informed:** see step 3 above.
+- The synthetic attacks are our own design; held-out IDs and drives keep the test
+  honest about *new IDs*, not about attack styles we did not think of.
+
+Files: `road_mlp_v2_final_log.txt`, `road_mlp_v2_int8_test.json`,
+`road_mlp_v2_config.json`, and the failed step 2: `road_mlp_v2_with_3byte_rule_*`.
+
+
+## 6. Second car: CAN-MIRGU (independent check, and the live showcase)
+
+CAN-MIRGU (Rajapaksha et al., VehicleSec 2024, CC BY 4.0): a 2016 electric car,
+500 kbit/s, 56 CAN IDs. **16.0 h of normal driving** on UK public roads over 6 days
+(May–June 2023; 55 silent minutes removed), and 36 attack recordings with per-frame
+labels, made on a proving ground in October 2023. Data report: `results/mirgu/mirgu_report.md`.
+
+**Same code, same network, same features** as ROAD (`IDS_DATASET=mirgu`), trained
+like v2 (real attacks + synthetic random-data attacks).
+
+**Split, fixed before any model ran** (`ml/src/mirgu_split.py`): Days 1–4 train,
+Day 5 val, Day 6 test. Attacks split by type, copies kept together (real + masquerade,
+min speedometer 1/2/3, gear shifter 1/2, both EMS replays); replays and suspensions
+test only. Every val/test attack type is one the model never saw.
+
+**Data handling found on the way** (no result looked at):
+- 7 of the 12 normal files contain silences > 1 s (parked, up to 18 min). The chip
+  forgets its history after 1 s of silence, so each file is cut there (20 captures);
+  silent time does not count as driving.
+- Suspension recordings label every frame of the window 1, but no frame is forged
+  (an ID just stops): stored as label 0, scored separately (incidents in the window).
+  They are 26 min cut out of the 4 May drive (Day 1), so their normal parts come from a training trip.
+
+### Decisions, in order (nothing hidden)
+1. **Val (allowed):** the ROAD severity rule never gave an ALERT on MIRGU: its
+   "impossible value" check only ran on bytes whose novelty check is the range, and
+   MIRGU's profile uses the exact set of seen values on 415 of 448 bytes. MIRGU now
+   counts a byte beyond its range + margin as strong evidence on every checked byte
+   (`common.RANGE_STRONG_ALL_CHECKED`, a `#define` on the chip). Model inputs are
+   unchanged; on val, masquerade/random attacks went from WARNING to ALERT with the
+   same 3 false ALERT incidents. ROAD keeps its rule (ROAD results unchanged, re-checked).
+2. Test scored once (results kept in `results/mirgu/before_october_fix/`).
+3. **Post-test revision.** The first live replay of a test recording raised an
+   ALERT before the attack started. Cause: the normal days are May–June, all attack
+   recordings are October, and some constant signals changed in between (0x507:
+   `00 00 00 01` → `08 00 00 21`). Detection tables only scored forged frames and clean
+   days, so the false alarms on the **normal frames inside attack recordings** were
+   not counted: they are now (also on val, where the problem was already visible).
+   Fix: the profile also learns the normal parts of the **training** attack recordings
+   (> 5 s away from the attack). Test was re-scored; both versions are reported.
+
+### Test split (Day 6 + 16 test attack recordings + 40 synthetic attacks)
+
+| test | rules only | ROAD v2, cross-car | MIRGU model, before fix | **MIRGU model (on chip)** |
+|---|---|---|---|---|
+| forged frames at ALERT / ALERT or WARNING | 90.8% / 90.8% | 96.1% / 97.6% | 96.5% / 98.0% | **96.1% / 97.6%** |
+| real attack rows detected (ALERT) | 9 of 10 | 9 of 10 | 9 of 10 | **9 of 10** |
+| max speedometer (FF on 0x386): ALERT / A or W | 39.7% / 39.7% | 39.7% / 82.1% | 39.7% / 97.1% | **39.7% / 96.7%** |
+| random data, all 8 bytes (14 attacks) | 0/14 | 14/14 | 14/14 | **14/14** |
+| random data, 3–5 bytes: ALERT | 0% | 87.1% | 97.0% | **88.6%** |
+| injected random frames: ALERT | 0% | 80.0% | 83.1% | **78.5%** |
+| wiper masquerade (half-byte, real value) | missed | missed | missed | **missed** |
+| suspensions (5) | missed | missed | missed | **missed** |
+| **clean Day 6 (1.58 h): false ALERT / WARNING incidents per hour** | 1.9 / 0 | 1.9 / **788** | 1.9 / 6.3 | **1.9 / 2.5** |
+| **normal parts of attack recordings (54.7 min): false ALERT / WARNING incidents** | 0 / 0 | 24 / 791 | 40 / 11 | **25 / 10** |
+
+"Real attack rows" = the 10 non-synthetic rows of the per-attack table: EMS replay,
+EMS replay long, fuzzing random IDs, max speedometer, multiple attacks (2 recordings),
+parking brake, reverse speedometer + fuzzing, steering-angle replay, wiper (real),
+wiper (masquerade). Suspensions are counted separately. Full table:
+`results/mirgu/mirgu_comparison.md`.
+
+### What this shows (honest reading)
+- **The method carries over to another car.** Same code, same 1,441-parameter
+  network, retrained in 5 minutes. On a day it never saw, the MIRGU model gives
+  **2.5 false WARNING incidents per hour** (ROAD v2 on ROAD: 249/h).
+- **Training on the car matters.** ROAD's network with a MIRGU profile still detects
+  the attacks, but flags normal new values all the time (788 WARNINGs/h): it learned
+  ROAD's driving, where a new value is rarer.
+- **Most real MIRGU attacks are caught by the rules alone** (90.8%): they inject
+  frames on top of the real ones (rate rule) or use IDs not in the car (whitelist).
+  MIRGU's "replays" also inject, so timing catches them; a pure replay that replaced
+  the real frames would still be missed. The AI adds random/new-value attacks, the
+  max speedometer (97% at WARNING), and the door attack on val (plausible values, too fast).
+- **Missed:** the wiper masquerade (a half-byte set to a value the car really uses,
+  on a 200 ms ID) and the suspensions (no "missing ID" rule), as expected.
+- **False ALERTs:** 1.9/h on clean driving, all from the rate rule (slow IDs that
+  sometimes arrive early). Inside the October attack recordings, 25 incidents in
+  55 min remain after the fix, almost all from one ID (0x381, power steering) in the
+  two "multiple attacks" recordings of the 26 October session: the context changed
+  again. The fix also cost some ALERT recall on synthetic 3–5-byte attacks (97.0% → 88.6%).
+- The fix is test-informed and the test attack recordings share their sessions with
+  the training ones, so the attack-recording false alarms are optimistic; clean Day 6
+  stays the independent measure.
+
+### On the chip
+| | |
+|---|---|
+| C detector vs Python, every val + test frame | **identical on 37,671,949 frames** (inputs, output, level), `results/mirgu/c_detector_check_mirgu.txt` |
+| Boot self-test (3,600 CAN-MIRGU frames) | 3600/3600, **63.4 µs per frame** (MLP 49.2 µs), `results/mirgu/stm32_selftest_mirgu.txt` |
+| Flash / RAM (whole firmware) | 123.4 KB / 10.5 KB (ROAD: 130.9 KB); seen-value tables 13 KB (ROAD 27 KB) |
+| Live, max speedometer | quiet for 5 s of normal traffic, ALERT **328 ms** after the first forged frame, 0 false incidents, CPU 12.7% at ~1,970 frames/s |
+
+### Live replay of the test split
+The whole test split replayed on the CAN bus (PC → USB-CAN adapter → Nucleo running the
+MIRGU model): the 16 test attack recordings in full, then the first 10 min of each Day 6
+piece (21.3 min of clean driving), 123 min in all. Command:
+`python pc/live_demo.py --dataset mirgu --all-test --clean-minutes 10`; log and numbers:
+`results/mirgu/live_replay_log.txt`, `results/mirgu/live_replay_test.json`.
+
+| recording | forged frames | live result | delay after first forged frame | false incidents ALERT / WARNING |
+|---|---:|---|---:|---:|
+| ems_replay | 6,406 | **ALERT** (EMS 0x371 too fast) | 125 ms | 1 / 0 |
+| ems_replay_long | 40,759 | **ALERT** (EMS 0x371 too fast) | 57 ms | 0 / 0 |
+| fuzzing_random_ids | 7,546 | **ALERT** (unknown ID 0x108) | 26 ms | 0 / 3 |
+| max_speedometer | 2,249 | **ALERT** (0x386 too fast, after a WARNING) | 264 ms | 0 / 0 |
+| parking_break | 1,076 | **ALERT** (parking brake value never seen + too fast) | 126 ms | 0 / 0 |
+| steering_angle_replay | 10,096 | **ALERT** (steering angle 0x2B0 too fast) | 81 ms | 0 / 0 |
+| wiper_warning | 327 | **ALERT** (0x559 too fast) | 900 ms | 0 / 1 |
+| wiper_warning_masquerade | 327 | missed | – | 0 / 1 |
+| multiple_attacks_1 | 15,745 | unknown: false ALERT already open | – | 1 / 0 |
+| multiple_attacks_2 | 32,179 | unknown: false ALERT already open | – | 1 / 0 |
+| reverse_speedometer_fuzzing | 1,182 | unknown: false ALERT already open | – | 1 / 0 |
+| 5 suspension recordings | 0 | no rule for a missing ID (expected) | – | 0 / 1 |
+| clean Day 6, 21.3 min | 0 | | | 4 / 2 |
+
+- **7 of 11 injection attacks raised an ALERT live, 26–900 ms after the first forged
+  frame** (median 125 ms). That delay includes the USB-CAN adapter's buffering. The
+  900 ms on the wiper attack comes from 0x559 being a slow ID (one frame every 200 ms),
+  so 5-of-10 smoothing needs about a second of frames.
+- **3 recordings can't be scored.** In both multiple_attacks recordings, an ALERT on
+  power steering (0x381, a value never seen) started 5 s into the recording and stayed
+  open until the attack began, 6 and 2 minutes later. In reverse_speedometer_fuzzing,
+  0x394 values never seen gave a WARNING from 0.8 s, then an ALERT 16 s before the
+  attack. The Nucleo reports only when an incident starts or escalates, so an attack
+  during an open ALERT sends nothing new. These count as false ALERTs. They are the
+  same October context shift seen offline (0x381 and 0x394 are where offline put its
+  25 outside-window ALERT incidents).
+- **The live scoring was corrected after this run.** At first, `live_demo.py` credited
+  these 3 as detections with a *negative* delay. It now marks an ALERT raised before
+  the first forged frame as a false alarm (`detected: "masked"`). The saved JSON was
+  re-scored by hand from the log, and the run was not repeated.
+- **Clean Day 6:** all 4 false ALERTs are in the two short pieces (20 s and 59 s of traffic
+  between bus silences), in their first seconds: 0x410 arriving early when the bus
+  wakes up, and 2 changes on 0x5BE. Offline, all of Day 6's false ALERTs fall in those
+  same two pieces. The two long pieces (20 min) had 0 ALERTs and 2 WARNINGs.
+- **Chip load:** up to 2,021 frames/s, detector CPU at most **12.8%**, queue at most 14
+  of 256 frames, **0 frames lost**, 0 CAN errors; 99% of frames were sent within 0.08 ms of
+  their recorded time.
+- **For the demo:** use the single-attack recordings that ran clean live (max_speedometer,
+  steering_angle_replay, parking_break, ems_replay_long, fuzzing_random_ids). Avoid
+  multiple_attacks and reverse_speedometer_fuzzing.

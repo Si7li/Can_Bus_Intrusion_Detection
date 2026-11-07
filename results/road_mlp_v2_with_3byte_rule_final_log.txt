@@ -1,0 +1,91 @@
+model v2: + 19,306 synthetic attack frames (150 attacks) and 339,641 benign frames around them
+Train 1,883,270 frames (43,629 attack), val 4,603,389 frames; 27 features: ['nov0', 'nov1', 'nov2', 'nov3', 'nov4', 'nov5', 'nov6', 'nov7', 'nov_count', 's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's_max', 'd0', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'dt_norm']
+Trained in 29 s, 1,441 parameters
+int8 TFLite model: 5,232 bytes
+float vs int8: max |diff| 0.356, same decision on 99.953% of frames
+Threshold sweep on val (int8 model, rules + model, smoothing 5/10), ALERT level:
+  thr recall all recall masq ALERT fr/min WARN fr/min
+ 0.50      0.963       0.967         3.68      181.62
+ 0.60      0.963       0.967         3.68      156.58
+ 0.70      0.963       0.967         3.68      150.67
+ 0.80      0.963       0.967         3.12      148.67
+ 0.90      0.963       0.967         0.56      146.59
+ 0.95      0.963       0.967         0.56      146.27
+ 0.98      0.963       0.967         0.56      119.32
+-> chosen threshold 0.98 (max masquerade ALERT recall with <= 0.5 ALERT frames/min on clean drives)
+=== RULES + MLP float32, threshold 0.98, smoothing 5/10 - val ===
+attack / variant                            frames   ALERT  A or W  detected  delay ms
+correlated_signal / fabrication              2,141   0.998   0.998       1/1        41
+correlated_signal / masquerade               2,141   0.998   0.998       1/1        41
+fuzzing / fabrication                          352   0.957   0.957       1/1         0
+max_speedometer / fabrication                3,141   0.999   0.999       1/1        41
+max_speedometer / masquerade                 3,141   0.999   0.999       1/1        41
+random_all8 / masquerade                       879   0.677   0.936     11/14       801
+random_injected / fabrication                  828   0.408   0.895     11/13       900
+random_some / masquerade                     1,048   0.866   0.950      9/13       400
+reverse_light_off / fabrication              2,372   0.998   0.998       1/1        39
+reverse_light_off / masquerade               2,372   0.998   0.998       1/1        47
+reverse_light_on / fabrication               3,690   0.999   0.999       1/1        40
+reverse_light_on / masquerade                3,690   0.999   0.999       1/1        40
+all attack frames caught : ALERT 0.9627 | ALERT or WARNING 0.9906
+clean drives (12.5 min):
+  ALERT   : 1 events (4.8/h), 0.56 frames/min  {'ambient_dyno_drive_extended_short': 7}
+  WARNING : 3 events (14.39/h), 119.32 frames/min  {'ambient_dyno_drive_extended_short': 1492}
+=== RULES + MLP int8, threshold 0.98, smoothing 5/10 - val ===
+attack / variant                            frames   ALERT  A or W  detected  delay ms
+correlated_signal / fabrication              2,141   0.998   0.998       1/1        41
+correlated_signal / masquerade               2,141   0.998   0.998       1/1        41
+fuzzing / fabrication                          352   0.957   0.957       1/1         0
+max_speedometer / fabrication                3,141   0.999   0.999       1/1        41
+max_speedometer / masquerade                 3,141   0.999   0.999       1/1        41
+random_all8 / masquerade                       879   0.677   0.936     11/14       801
+random_injected / fabrication                  828   0.408   0.891     11/13       900
+random_some / masquerade                     1,048   0.866   0.950      9/13       400
+reverse_light_off / fabrication              2,372   0.998   0.998       1/1        39
+reverse_light_off / masquerade               2,372   0.998   0.998       1/1        47
+reverse_light_on / fabrication               3,690   0.999   0.999       1/1        40
+reverse_light_on / masquerade                3,690   0.999   0.999       1/1        40
+all attack frames caught : ALERT 0.9627 | ALERT or WARNING 0.9905
+clean drives (12.5 min):
+  ALERT   : 1 events (4.8/h), 0.56 frames/min  {'ambient_dyno_drive_extended_short': 7}
+  WARNING : 3 events (14.39/h), 119.32 frames/min  {'ambient_dyno_drive_extended_short': 1492}
+=== RULES + MLP float32, threshold 0.98, smoothing 5/10 - test ===
+attack / variant                            frames   ALERT  A or W  detected  delay ms
+correlated_signal / fabrication              2,087   0.998   0.998       1/1        41
+correlated_signal / masquerade               2,087   0.998   0.998       1/1        41
+fuzzing / fabrication                          592   0.939   0.939       1/1         0
+max_engine_coolant_temp / fabrication           43   0.884   0.884       1/1       406
+max_engine_coolant_temp / masquerade            43   0.000   0.000       0/1         -
+max_speedometer / fabrication                2,445   0.998   0.998       1/1        41
+max_speedometer / masquerade                 2,445   0.998   0.998       1/1        41
+random_all8 / masquerade                     2,725   0.766   0.978     12/14       240
+random_injected / fabrication                1,223   0.347   0.903      8/13      1295
+random_some / masquerade                     2,820   0.444   0.936      8/13       240
+reverse_light_off / fabrication                673   0.994   0.994       1/1        39
+reverse_light_off / masquerade                 673   0.994   0.994       1/1        39
+reverse_light_on / fabrication               1,992   0.998   0.998       1/1        38
+reverse_light_on / masquerade                1,992   0.998   0.998       1/1        38
+all attack frames caught : ALERT 0.8571 | ALERT or WARNING 0.9782
+clean drives (22.9 min):
+  ALERT   : 36 events (94.52/h), 54.13 frames/min  {'ambient_dyno_drive_benign_anomaly': 1237}
+  WARNING : 149 events (391.2/h), 418.07 frames/min  {'ambient_dyno_drive_benign_anomaly': 4953, 'ambient_dyno_drive_basic_short': 3025, 'ambient_highway_street_driving_diagnostics': 1576}
+=== RULES + MLP int8, threshold 0.98, smoothing 5/10 - test ===
+attack / variant                            frames   ALERT  A or W  detected  delay ms
+correlated_signal / fabrication              2,087   0.998   0.998       1/1        41
+correlated_signal / masquerade               2,087   0.998   0.998       1/1        41
+fuzzing / fabrication                          592   0.939   0.939       1/1         0
+max_engine_coolant_temp / fabrication           43   0.884   0.884       1/1       406
+max_engine_coolant_temp / masquerade            43   0.000   0.000       0/1         -
+max_speedometer / fabrication                2,445   0.998   0.998       1/1        41
+max_speedometer / masquerade                 2,445   0.998   0.998       1/1        41
+random_all8 / masquerade                     2,725   0.766   0.978     12/14       240
+random_injected / fabrication                1,223   0.347   0.902      8/13      1295
+random_some / masquerade                     2,820   0.444   0.933      8/13       240
+reverse_light_off / fabrication                673   0.994   0.994       1/1        39
+reverse_light_off / masquerade                 673   0.994   0.994       1/1        39
+reverse_light_on / fabrication               1,992   0.998   0.998       1/1        38
+reverse_light_on / masquerade                1,992   0.998   0.998       1/1        38
+all attack frames caught : ALERT 0.8571 | ALERT or WARNING 0.9778
+clean drives (22.9 min):
+  ALERT   : 36 events (94.52/h), 54.13 frames/min  {'ambient_dyno_drive_benign_anomaly': 1237}
+  WARNING : 149 events (391.2/h), 418.51 frames/min  {'ambient_dyno_drive_benign_anomaly': 4962, 'ambient_dyno_drive_basic_short': 3025, 'ambient_highway_street_driving_diagnostics': 1577}

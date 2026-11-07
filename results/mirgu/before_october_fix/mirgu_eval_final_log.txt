@@ -1,0 +1,168 @@
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1794038683.217363  206174 cpu_feature_guard.cc:227] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+/home/khalils/Desktop/Projects/TinyML_Can_Bus_Intrusion_Detection/.venv/lib/python3.12/site-packages/tensorflow/lite/python/interpreter.py:457: UserWarning:     Warning: tf.lite.Interpreter is deprecated and is scheduled for deletion in
+    TF 2.20. Please use the LiteRT interpreter from the ai_edge_litert package.
+    See the [migration guide](https://ai.google.dev/edge/litert/migration)
+    for details.
+    
+  warnings.warn(_INTERPRETER_DELETION_WARNING)
+INFO: Created TensorFlow Lite XNNPACK delegate for CPU.
+/home/khalils/Desktop/Projects/TinyML_Can_Bus_Intrusion_Detection/.venv/lib/python3.12/site-packages/tensorflow/lite/python/interpreter.py:457: UserWarning:     Warning: tf.lite.Interpreter is deprecated and is scheduled for deletion in
+    TF 2.20. Please use the LiteRT interpreter from the ai_edge_litert package.
+    See the [migration guide](https://ai.google.dev/edge/litert/migration)
+    for details.
+    
+  warnings.warn(_INTERPRETER_DELETION_WARNING)
+/home/khalils/Desktop/Projects/TinyML_Can_Bus_Intrusion_Detection/.venv/lib/python3.12/site-packages/tensorflow/lite/python/interpreter.py:457: UserWarning:     Warning: tf.lite.Interpreter is deprecated and is scheduled for deletion in
+    TF 2.20. Please use the LiteRT interpreter from the ai_edge_litert package.
+    See the [migration guide](https://ai.google.dev/edge/litert/migration)
+    for details.
+    
+  warnings.warn(_INTERPRETER_DELETION_WARNING)
+/home/khalils/Desktop/Projects/TinyML_Can_Bus_Intrusion_Detection/.venv/lib/python3.12/site-packages/tensorflow/lite/python/interpreter.py:457: UserWarning:     Warning: tf.lite.Interpreter is deprecated and is scheduled for deletion in
+    TF 2.20. Please use the LiteRT interpreter from the ai_edge_litert package.
+    See the [migration guide](https://ai.google.dev/edge/litert/migration)
+    for details.
+    
+  warnings.warn(_INTERPRETER_DELETION_WARNING)
+
+=== CAN-MIRGU val - rules_only ===
+attack / variant                            frames   ALERT  A or W  detected  delay ms
+break_and_fog_light / fabrication              118   0.932   0.932       1/1      3999
+break_and_fog_light / masquerade               118   0.000   0.000       0/1         -
+door_open_warning / fabrication              9,661   0.011   0.011       1/1      3311
+drive_mode_changing / fabrication            2,702   0.999   0.999       1/1       108
+ems / fabrication                            7,738   1.000   1.000       1/1        40
+fuzzing_valid_ids_dos / fabrication            606   0.891   0.891       1/1         0
+random_all8 / masquerade                     2,812   0.000   0.000      0/14         -
+random_injected / fabrication                3,096   0.000   0.000      0/13         -
+random_some / masquerade                     3,385   0.000   0.000      0/13         -
+
+all attack frames caught : ALERT 0.3699 | ALERT or WARNING 0.3699
+clean drives (97.1 min):
+  ALERT   : 2 events (1.24/h), 0.2 frames/min  {'benign_day5_file1_part2': 19}
+  WARNING : 0 events (0.0/h), 0.0 frames/min  
+  attack recordings, normal part outside the attack window (19.8 min): ALERT 0 incidents (0 frames), WARNING 0 incidents
+
+=== CAN-MIRGU val - road_v2_cross_car ===
+attack / variant                            frames   ALERT  A or W  detected  delay ms
+break_and_fog_light / fabrication              118   0.932   0.932       1/1      3999
+break_and_fog_light / masquerade               118   0.000   0.000       0/1         -
+door_open_warning / fabrication              9,661   0.011   0.011       1/1      3311
+drive_mode_changing / fabrication            2,702   0.999   0.999       1/1        82
+ems / fabrication                            7,738   1.000   1.000       1/1        40
+fuzzing_valid_ids_dos / fabrication            606   0.901   0.906       1/1         0
+random_all8 / masquerade                     2,812   0.980   0.980     14/14        81
+random_injected / fabrication                3,096   0.602   0.889     12/13        80
+random_some / masquerade                     3,385   0.809   0.924     11/13        80
+
+all attack frames caught : ALERT 0.6134 | ALERT or WARNING 0.6558
+clean drives (97.1 min):
+  ALERT   : 3 events (1.85/h), 0.27 frames/min  {'benign_day5_file1_part2': 19, 'benign_day5_file1_part1': 7}
+  WARNING : 1025 events (633.62/h), 237.38 frames/min  {'benign_day5_file1_part1': 17339, 'benign_day5_file1_part2': 5701}
+  attack recordings, normal part outside the attack window (19.8 min): ALERT 15 incidents (74,193 frames), WARNING 258 incidents
+
+=== CAN-MIRGU val - mirgu_model ===
+attack / variant                            frames   ALERT  A or W  detected  delay ms
+break_and_fog_light / fabrication              118   0.932   0.932       1/1      3999
+break_and_fog_light / masquerade               118   0.966   0.966       1/1      3999
+door_open_warning / fabrication              9,661   0.011   1.000       1/1      3311
+drive_mode_changing / fabrication            2,702   0.999   0.999       1/1        82
+ems / fabrication                            7,738   1.000   1.000       1/1        40
+fuzzing_valid_ids_dos / fabrication            606   0.894   0.894       1/1         0
+random_all8 / masquerade                     2,812   0.980   0.980     14/14        81
+random_injected / fabrication                3,096   0.606   0.873     12/13        80
+random_some / masquerade                     3,385   0.805   0.883     11/13        80
+
+all attack frames caught : ALERT 0.6171 | ALERT or WARNING 0.9692
+clean drives (97.1 min):
+  ALERT   : 3 events (1.85/h), 0.27 frames/min  {'benign_day5_file1_part2': 19, 'benign_day5_file1_part1': 7}
+  WARNING : 37 events (22.87/h), 242.46 frames/min  {'benign_day5_file1_part1': 23418, 'benign_day5_file1_part2': 115}
+  attack recordings, normal part outside the attack window (19.8 min): ALERT 19 incidents (7,344 frames), WARNING 2 incidents
+
+=== CAN-MIRGU test - rules_only ===
+attack / variant                            frames   ALERT  A or W  detected  delay ms
+ems_replay / fabrication                     6,406   0.999   0.999       1/1        40
+ems_replay_long / fabrication               40,759   1.000   1.000       1/1        40
+fuzzing_random_ids / fabrication             7,546   0.988   0.988       1/1         0
+max_speedometer / fabrication                2,249   0.397   0.397       1/1       244
+multiple_attacks / fabrication              47,924   0.957   0.957       2/2        40
+parking_break / fabrication                  1,076   0.996   0.996       1/1        81
+random_all8 / masquerade                     2,024   0.000   0.000      0/14         -
+random_injected / fabrication                3,056   0.000   0.000      0/13         -
+random_some / masquerade                     2,536   0.000   0.000      0/13         -
+reverse_speedometer_fuzzing / fabrication    1,182   0.894   0.894       1/1        80
+steering_angle_replay / fabrication         10,096   1.000   1.000       1/1        40
+wiper_warning / fabrication                    327   0.988   0.988       1/1       797
+wiper_warning / masquerade                     327   0.000   0.000       0/1         -
+
+all attack frames caught : ALERT 0.9077 | ALERT or WARNING 0.9077
+clean drives (94.9 min):
+  ALERT   : 3 events (1.9/h), 0.25 frames/min  {'benign_day6_file1_part3': 17, 'benign_day6_file1_part2': 7}
+  WARNING : 0 events (0.0/h), 0.0 frames/min  
+  attack recordings, normal part outside the attack window (54.7 min): ALERT 0 incidents (0 frames), WARNING 0 incidents
+  suspension recordings (no frame injected; incidents inside / outside the window):
+    id_07f_suspension_attack     ID 07F silent   134 s: inside ALERT 0 WARNING 0 | outside ALERT 0 WARNING 0
+    id_160_suspension_attack     ID 160 silent    90 s: inside ALERT 0 WARNING 0 | outside ALERT 0 WARNING 0
+    id_371_suspension_attack     ID 371 silent    90 s: inside ALERT 0 WARNING 0 | outside ALERT 0 WARNING 0
+    id_386_suspension_attack     ID 386 silent    90 s: inside ALERT 0 WARNING 0 | outside ALERT 0 WARNING 0
+    id_541_suspension_attack     ID 541 silent   120 s: inside ALERT 0 WARNING 0 | outside ALERT 0 WARNING 0
+
+=== CAN-MIRGU test - road_v2_cross_car ===
+attack / variant                            frames   ALERT  A or W  detected  delay ms
+ems_replay / fabrication                     6,406   0.999   0.999       1/1        40
+ems_replay_long / fabrication               40,759   1.000   1.000       1/1        40
+fuzzing_random_ids / fabrication             7,546   0.988   0.989       1/1         0
+max_speedometer / fabrication                2,249   0.397   0.821       1/1       244
+multiple_attacks / fabrication              47,924   0.964   0.973       2/2        40
+parking_break / fabrication                  1,076   1.000   1.000       1/1         0
+random_all8 / masquerade                     2,024   0.972   0.975     14/14       800
+random_injected / fabrication                3,056   0.804   0.970     13/13        80
+random_some / masquerade                     2,536   0.871   0.874     13/13        80
+reverse_speedometer_fuzzing / fabrication    1,182   0.916   0.926       1/1        80
+steering_angle_replay / fabrication         10,096   1.000   1.000       1/1        40
+wiper_warning / fabrication                    327   0.988   0.988       1/1       797
+wiper_warning / masquerade                     327   0.000   0.000       0/1         -
+
+all attack frames caught : ALERT 0.9632 | ALERT or WARNING 0.9785
+clean drives (94.9 min):
+  ALERT   : 3 events (1.9/h), 0.25 frames/min  {'benign_day6_file1_part3': 17, 'benign_day6_file1_part2': 7}
+  WARNING : 1247 events (788.49/h), 149.1 frames/min  {'benign_day6_file1_part1': 9010, 'benign_day6_file1_part4': 5138}
+  attack recordings, normal part outside the attack window (54.7 min): ALERT 40 incidents (366,999 frames), WARNING 632 incidents
+  suspension recordings (no frame injected; incidents inside / outside the window):
+    id_07f_suspension_attack     ID 07F silent   134 s: inside ALERT 0 WARNING 18 | outside ALERT 0 WARNING 54
+    id_160_suspension_attack     ID 160 silent    90 s: inside ALERT 0 WARNING 29 | outside ALERT 0 WARNING 69
+    id_371_suspension_attack     ID 371 silent    90 s: inside ALERT 0 WARNING 23 | outside ALERT 0 WARNING 54
+    id_386_suspension_attack     ID 386 silent    90 s: inside ALERT 0 WARNING 31 | outside ALERT 0 WARNING 65
+    id_541_suspension_attack     ID 541 silent   120 s: inside ALERT 0 WARNING 23 | outside ALERT 0 WARNING 41
+
+=== CAN-MIRGU test - mirgu_model ===
+attack / variant                            frames   ALERT  A or W  detected  delay ms
+ems_replay / fabrication                     6,406   0.999   0.999       1/1        40
+ems_replay_long / fabrication               40,759   1.000   1.000       1/1        40
+fuzzing_random_ids / fabrication             7,546   0.988   0.988       1/1         0
+max_speedometer / fabrication                2,249   0.397   0.971       1/1       244
+multiple_attacks / fabrication              47,924   0.961   0.965       2/2        40
+parking_break / fabrication                  1,076   0.996   0.996       1/1        81
+random_all8 / masquerade                     2,024   0.972   0.972     14/14       800
+random_injected / fabrication                3,056   0.831   0.945     13/13        80
+random_some / masquerade                     2,536   0.970   0.970     13/13        81
+reverse_speedometer_fuzzing / fabrication    1,182   0.903   0.910       1/1        80
+steering_angle_replay / fabrication         10,096   1.000   1.000       1/1        40
+wiper_warning / fabrication                    327   0.988   0.988       1/1       797
+wiper_warning / masquerade                     327   0.000   0.000       0/1         -
+
+all attack frames caught : ALERT 0.9645 | ALERT or WARNING 0.9795
+clean drives (94.9 min):
+  ALERT   : 3 events (1.9/h), 0.25 frames/min  {'benign_day6_file1_part3': 17, 'benign_day6_file1_part2': 7}
+  WARNING : 10 events (6.32/h), 0.67 frames/min  {'benign_day6_file1_part1': 52, 'benign_day6_file1_part4': 7, 'benign_day6_file1_part3': 5}
+  attack recordings, normal part outside the attack window (54.7 min): ALERT 40 incidents (86,585 frames), WARNING 11 incidents
+  suspension recordings (no frame injected; incidents inside / outside the window):
+    id_07f_suspension_attack     ID 07F silent   134 s: inside ALERT 0 WARNING 1 | outside ALERT 0 WARNING 0
+    id_160_suspension_attack     ID 160 silent    90 s: inside ALERT 0 WARNING 0 | outside ALERT 0 WARNING 0
+    id_371_suspension_attack     ID 371 silent    90 s: inside ALERT 0 WARNING 0 | outside ALERT 0 WARNING 0
+    id_386_suspension_attack     ID 386 silent    90 s: inside ALERT 0 WARNING 0 | outside ALERT 0 WARNING 0
+    id_541_suspension_attack     ID 541 silent   120 s: inside ALERT 0 WARNING 0 | outside ALERT 0 WARNING 0
+
+written results/mirgu/mirgu_comparison.md

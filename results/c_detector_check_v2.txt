@@ -1,0 +1,28 @@
+=== val: 4,603,389 frames (4,603,052 with a known ID) ===
+  model inputs (27 int8) identical : 100.0000%  (0 frames differ)
+  model output (int8) identical    : 100.0000%
+  ALERT/WARNING level identical    : 100.0000%  (0 frames differ)
+=== test: 5,901,515 frames (5,900,959 with a known ID) ===
+  model inputs (27 int8) identical : 100.0000%  (0 frames differ)
+  model output (int8) identical    : 100.0000%
+  ALERT/WARNING level identical    : 100.0000%  (0 frames differ)
+=== C DETECTOR (exact-us timestamps) - test ===
+attack / variant                            frames   ALERT  A or W  detected  delay ms
+correlated_signal / fabrication              2,087   0.998   0.998       1/1        41
+correlated_signal / masquerade               2,087   0.998   0.998       1/1        41
+fuzzing / fabrication                          592   0.939   0.939       1/1         0
+max_engine_coolant_temp / fabrication           43   0.884   0.884       1/1       406
+max_engine_coolant_temp / masquerade            43   0.000   0.000       0/1         -
+max_speedometer / fabrication                2,445   0.998   0.998       1/1        41
+max_speedometer / masquerade                 2,445   0.998   0.998       1/1        41
+random_all8 / masquerade                     2,725   0.415   0.978      7/14       400
+random_injected / fabrication                1,223   0.213   0.902      4/13       305
+random_some / masquerade                     2,820   0.436   0.933      6/13        70
+reverse_light_off / fabrication                673   0.994   0.994       1/1        39
+reverse_light_off / masquerade                 673   0.994   0.994       1/1        39
+reverse_light_on / fabrication               1,992   0.998   0.998       1/1        38
+reverse_light_on / masquerade                1,992   0.998   0.998       1/1        38
+all attack frames caught : ALERT 0.8048 | ALERT or WARNING 0.9778
+clean drives (22.9 min):
+  ALERT   : 1 events (2.63/h), 0.26 frames/min  {'ambient_dyno_drive_benign_anomaly': 6}
+  WARNING : 95 events (249.43/h), 472.38 frames/min  {'ambient_dyno_drive_benign_anomaly': 6193, 'ambient_dyno_drive_basic_short': 3025, 'ambient_highway_street_driving_diagnostics': 1577}

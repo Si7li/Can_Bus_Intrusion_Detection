@@ -14,9 +14,9 @@ from pathlib import Path
 
 import numpy as np
 
-from common import RESULTS_DIR
+from common import MLP_NAME, RESULTS_DIR
 
-TFLITE_PATH = RESULTS_DIR / "models" / "road_mlp_int8.tflite"
+TFLITE_PATH = RESULTS_DIR / "models" / f"{MLP_NAME}_int8.tflite"
 F32 = np.float32
 
 

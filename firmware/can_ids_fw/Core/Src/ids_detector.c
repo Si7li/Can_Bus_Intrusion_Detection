@@ -15,6 +15,9 @@
 
 #include "ids_detector.h"
 #include "ids_model.h"
+#ifndef IDS_RANGE_ALL_CHECKED   /* headers exported before this setting existed (ROAD) */
+#define IDS_RANGE_ALL_CHECKED 0
+#endif
 
 #include <string.h>
 
@@ -177,7 +180,12 @@ void ids_process(const ids_frame_t *f, ids_result_t *r)
         uint8_t m = ids_nov_mode[k][j];
         if (m == 1) {
             const uint8_t *bm = ids_seen[ids_seen_row[k][j]];
-            if (!(bm[b[j] >> 3] & (0x80u >> (b[j] & 7)))) novel |= 1u << j;
+            if (!(bm[b[j] >> 3] & (0x80u >> (b[j] & 7)))) {
+                novel |= 1u << j;
+#if IDS_RANGE_ALL_CHECKED       /* CAN-MIRGU: impossible value on an exact-set byte too */
+                if (b[j] < ids_range_lo[k][j] || b[j] > ids_range_hi[k][j]) outside = 1;
+#endif
+            }
         } else if (m == 2) {
             if (b[j] < ids_range_lo[k][j] || b[j] > ids_range_hi[k][j]) { novel |= 1u << j; outside = 1; }
         }

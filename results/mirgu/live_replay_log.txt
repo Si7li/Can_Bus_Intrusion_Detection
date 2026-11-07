@@ -1,0 +1,192 @@
+Replaying ems_replay_attack (324,147 frames, 166.4 s)...
+[  73.55 s] ALERT   forged engine management (EMS) 0x371 arriving faster than normal (extra frames injected)  (p=1%)
+[ 140.55 s] ALERT   forged 0x559 byte 1 [value never seen in normal traffic]  (p=99%)
+
+=== ems_replay_attack: 324,147 frames in 166.4 s, 6406 forged ===
+  attack detected (ALERT): YES, 125 ms after the first forged frame
+  described as: forged engine management (EMS) 0x371 arriving faster than normal (extra frames injected)
+  false incidents (outside the attack): 1 ALERT, 0 WARNING
+  Nucleo: up to 2019 frames/s, detector CPU max 12.8%, queue max 14, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.03 ms of their recorded time
+Replaying ems_replay_long_attack (2,051,085 frames, 1059.0 s)...
+[ 217.07 s] ALERT   forged engine management (EMS) 0x371 arriving faster than normal (extra frames injected)  (p=0%)
+[ 434.78 s] ALERT   forged engine management (EMS) 0x371 arriving faster than normal (extra frames injected)  (p=1%)
+[ 807.82 s] ALERT   forged engine management (EMS) 0x371 arriving faster than normal (extra frames injected)  (p=1%)
+
+=== ems_replay_long_attack: 2,051,085 frames in 1059.0 s, 40759 forged ===
+  attack detected (ALERT): YES, 57 ms after the first forged frame
+  described as: forged engine management (EMS) 0x371 arriving faster than normal (extra frames injected)
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2010 frames/s, detector CPU max 12.8%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.03 ms of their recorded time
+Replaying fuzzing_random_ids (729,007 frames, 377.6 s)...
+[  33.45 s] WARNING unusual 0x153 byte 7 [value never seen in normal traffic]  (p=99%)
+[  65.90 s] WARNING unusual 0x153 byte 7 [value never seen in normal traffic]  (p=99%)
+[  91.13 s] WARNING unusual 0x153 byte 7 [value never seen in normal traffic]  (p=99%)
+[ 145.60 s] ALERT   unknown CAN ID 0x108: frame from a device that does not belong on this bus (fuzzing / injection)  (p=0%)
+
+=== fuzzing_random_ids: 729,007 frames in 377.6 s, 7546 forged ===
+  attack detected (ALERT): YES, 26 ms after the first forged frame
+  described as: unknown CAN ID 0x108: frame from a device that does not belong on this bus (fuzzing / injection)
+  false incidents (outside the attack): 0 ALERT, 3 WARNING
+  Nucleo: up to 1966 frames/s, detector CPU max 12.2%, queue max 11, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.03 ms of their recorded time
+Replaying id_07f_suspension_attack (599,865 frames, 314.4 s)...
+[ 274.09 s] WARNING unusual gear shifter / drive mode [value never seen in normal traffic]  (p=96%)
+
+=== id_07f_suspension_attack: 599,865 frames in 314.4 s, 0 forged ===
+  false incidents (outside the attack): 0 ALERT, 1 WARNING
+  Nucleo: up to 1931 frames/s, detector CPU max 12.2%, queue max 13, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.05 ms of their recorded time
+Replaying id_160_suspension_attack (591,000 frames, 314.5 s)...
+
+=== id_160_suspension_attack: 591,000 frames in 314.5 s, 0 forged ===
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 1930 frames/s, detector CPU max 12.2%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.05 ms of their recorded time
+Replaying id_371_suspension_attack (591,000 frames, 314.7 s)...
+
+=== id_371_suspension_attack: 591,000 frames in 314.7 s, 0 forged ===
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 1930 frames/s, detector CPU max 12.2%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.05 ms of their recorded time
+Replaying id_386_suspension_attack (595,499 frames, 314.5 s)...
+
+=== id_386_suspension_attack: 595,499 frames in 314.5 s, 0 forged ===
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 1928 frames/s, detector CPU max 12.2%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.05 ms of their recorded time
+Replaying id_541_suspension_attack (598,799 frames, 313.7 s)...
+
+=== id_541_suspension_attack: 598,799 frames in 313.7 s, 0 forged ===
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 1931 frames/s, detector CPU max 12.2%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.05 ms of their recorded time
+Replaying max_speedometer_attack (417,094 frames, 216.4 s)...
+[  70.46 s] WARNING unusual speedometer (wheel speeds) 0x386 arriving faster than normal (extra frames injected)  (p=99%)
+[  70.56 s] ALERT   forged speedometer (wheel speeds) 0x386 arriving faster than normal (extra frames injected)  (p=99%)
+
+=== max_speedometer_attack: 417,094 frames in 216.4 s, 2249 forged ===
+  attack detected (ALERT): YES, 264 ms after the first forged frame
+  described as: forged speedometer (wheel speeds) 0x386 arriving faster than normal (extra frames injected)
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 1979 frames/s, detector CPU max 12.5%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.03 ms of their recorded time
+Replaying multiple_attacks_1 (1,672,671 frames, 872.6 s)...
+[   4.73 s] WARNING unusual 0x394 byte 1 [value never seen in normal traffic]; 0x394 byte 5 [value never seen in normal traffic]  (p=99%)
+[   4.73 s] ALERT   forged power steering [value never seen in normal traffic]; power steering [value never seen in normal traffic]  (p=99%)
+
+=== multiple_attacks_1: 1,672,671 frames in 872.6 s, 15745 forged ===
+  attack detected (ALERT): YES, -362596 ms after the first forged frame
+  described as: forged power steering [value never seen in normal traffic]; power steering [value never seen in normal traffic]
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2009 frames/s, detector CPU max 12.7%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.03 ms of their recorded time
+Replaying multiple_attacks_2 (2,093,747 frames, 1085.4 s)...
+[   5.88 s] ALERT   forged power steering [value never seen in normal traffic]; power steering [value never seen in normal traffic]  (p=99%)
+
+=== multiple_attacks_2: 2,093,747 frames in 1085.4 s, 32179 forged ===
+  attack detected (ALERT): YES, -114734 ms after the first forged frame
+  described as: forged power steering [value never seen in normal traffic]; power steering [value never seen in normal traffic]
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2010 frames/s, detector CPU max 12.8%, queue max 9, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.03 ms of their recorded time
+Replaying parking_break_attack (146,664 frames, 76.2 s)...
+[  47.89 s] ALERT   forged parking brake [value never seen in normal traffic]; 0x394 arriving faster than normal (extra frames injected)  (p=99%)
+
+=== parking_break_attack: 146,664 frames in 76.2 s, 1076 forged ===
+  attack detected (ALERT): YES, 126 ms after the first forged frame
+  described as: forged parking brake [value never seen in normal traffic]; 0x394 arriving faster than normal (extra frames injected)
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 1964 frames/s, detector CPU max 12.5%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.03 ms of their recorded time
+Replaying reverse_speedometer_fuzzing_attack (177,130 frames, 92.5 s)...
+[   0.83 s] WARNING unusual 0x394 byte 1 [value never seen in normal traffic]; 0x394 byte 5 [value never seen in normal traffic]  (p=99%)
+[  18.16 s] ALERT   forged 0x394 byte 1 [value never seen in normal traffic]; 0x394 byte 5 [value never seen in normal traffic]; parking brake [value never seen in normal traffic]; 0x394 byte 7 [value never seen in normal traffic, contradicts brake system status]  (p=99%)
+
+=== reverse_speedometer_fuzzing_attack: 177,130 frames in 92.5 s, 1182 forged ===
+  attack detected (ALERT): YES, -16488 ms after the first forged frame
+  described as: forged 0x394 byte 1 [value never seen in normal traffic]; 0x394 byte 5 [value never seen in normal traffic]; parking brake [value never seen in normal traffic]; 0x394 byte 7 [value never seen in normal traffic, contradicts brake system status]
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 1976 frames/s, detector CPU max 12.5%, queue max 9, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.03 ms of their recorded time
+Replaying steering_angle_replay (475,808 frames, 243.8 s)...
+[  71.67 s] ALERT   forged steering angle sensor 0x2B0 arriving faster than normal (extra frames injected)  (p=99%)
+
+=== steering_angle_replay: 475,808 frames in 243.8 s, 10096 forged ===
+  attack detected (ALERT): YES, 81 ms after the first forged frame
+  described as: forged steering angle sensor 0x2B0 arriving faster than normal (extra frames injected)
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2021 frames/s, detector CPU max 12.8%, queue max 12, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.03 ms of their recorded time
+Replaying wiper_warning_attack (233,555 frames, 122.1 s)...
+[  45.30 s] ALERT   forged 0x559 arriving faster than normal (extra frames injected)  (p=98%)
+[ 118.10 s] WARNING unusual 0x394 byte 5 [value never seen in normal traffic]  (p=50%)
+
+=== wiper_warning_attack: 233,555 frames in 122.1 s, 327 forged ===
+  attack detected (ALERT): YES, 900 ms after the first forged frame
+  described as: forged 0x559 arriving faster than normal (extra frames injected)
+  false incidents (outside the attack): 0 ALERT, 1 WARNING
+  Nucleo: up to 1920 frames/s, detector CPU max 12.2%, queue max 6, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.03 ms of their recorded time
+Replaying wiper_warning_masquerade_attack (233,228 frames, 122.1 s)...
+[ 118.00 s] WARNING unusual 0x394 byte 5 [value never seen in normal traffic]  (p=50%)
+
+=== wiper_warning_masquerade_attack: 233,228 frames in 122.1 s, 327 forged ===
+  attack detected (ALERT): NO
+  false incidents (outside the attack): 0 ALERT, 1 WARNING
+  Nucleo: up to 1920 frames/s, detector CPU max 12.2%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.03 ms of their recorded time
+Replaying benign_day6_file1_part1 (1,145,079 frames, 600.0 s)...
+[ 100.99 s] WARNING unusual steering angle sensor [value never seen in normal traffic]  (p=99%)
+
+=== benign_day6_file1_part1: 1,145,079 frames in 600.0 s, 0 forged ===
+  false incidents (outside the attack): 0 ALERT, 1 WARNING
+  Nucleo: up to 1928 frames/s, detector CPU max 12.2%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.05 ms of their recorded time
+Replaying benign_day6_file1_part2 (8,238 frames, 20.3 s)...
+[   0.51 s] ALERT   forged 0x410 arriving faster than normal (extra frames injected)  (p=3%)
+
+=== benign_day6_file1_part2: 8,238 frames in 20.3 s, 0 forged ===
+  false incidents (outside the attack): 1 ALERT, 0 WARNING
+  Nucleo: up to 471 frames/s, detector CPU max 2.9%, queue max 1, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.07 ms of their recorded time
+Replaying benign_day6_file1_part3 (23,270 frames, 59.1 s)...
+[   0.51 s] ALERT   forged 0x410 arriving faster than normal (extra frames injected)  (p=3%)
+[   4.52 s] ALERT   forged changes on 0x5BE  (p=16%)
+[   5.52 s] ALERT   forged changes on 0x5BE  (p=16%)
+
+=== benign_day6_file1_part3: 23,270 frames in 59.1 s, 0 forged ===
+  false incidents (outside the attack): 3 ALERT, 0 WARNING
+  Nucleo: up to 410 frames/s, detector CPU max 2.6%, queue max 4, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.08 ms of their recorded time
+Replaying benign_day6_file1_part4 (1,135,011 frames, 600.0 s)...
+[  82.67 s] WARNING unusual power steering [value never seen in normal traffic]  (p=63%)
+
+=== benign_day6_file1_part4: 1,135,011 frames in 600.0 s, 0 forged ===
+  false incidents (outside the attack): 0 ALERT, 1 WARNING
+  Nucleo: up to 1937 frames/s, detector CPU max 12.3%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.05 ms of their recorded time
+
+recording                                  detected delay ms false A/W  CPU % overflow
+ems_replay_attack                              True      125    1/0      12.8        0
+ems_replay_long_attack                         True       57    0/0      12.8        0
+fuzzing_random_ids                             True       26    0/3      12.2        0
+id_07f_suspension_attack                       None     None    0/1      12.2        0
+id_160_suspension_attack                       None     None    0/0      12.2        0
+id_371_suspension_attack                       None     None    0/0      12.2        0
+id_386_suspension_attack                       None     None    0/0      12.2        0
+id_541_suspension_attack                       None     None    0/0      12.2        0
+max_speedometer_attack                         True      264    0/0      12.5        0
+multiple_attacks_1                             True  -362596    0/0      12.7        0
+multiple_attacks_2                             True  -114734    0/0      12.8        0
+parking_break_attack                           True      126    0/0      12.5        0
+reverse_speedometer_fuzzing_attack             True   -16488    0/0      12.5        0
+steering_angle_replay                          True       81    0/0      12.8        0
+wiper_warning_attack                           True      900    0/1      12.2        0
+wiper_warning_masquerade_attack               False     None    0/1      12.2        0
+benign_day6_file1_part1                        None     None    0/1      12.2        0
+benign_day6_file1_part2                        None     None    1/0       2.9        0
+benign_day6_file1_part3                        None     None    3/0       2.6        0
+benign_day6_file1_part4                        None     None    0/1      12.3        0
+saved /home/khalils/Desktop/Projects/TinyML_Can_Bus_Intrusion_Detection/results/mirgu/live_replay_test.json

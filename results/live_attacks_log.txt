@@ -1,0 +1,73 @@
+[   1.00 s]         bus 0 frames/s | detector CPU 0.0% | queue max 0 | overflow 0 | CAN errors TEC 0 REC 0
+Attack dos_unknown_id: 37,709 frames in 14.0 s, 11,400 injected/forged between 5 s and 8 s
+[   4.52 s]         bus 2394 frames/s | detector CPU 15.2% | queue max 2 | overflow 0 | CAN errors TEC 0 REC 0
+[   5.32 s] ALERT   unknown CAN ID 0x000: frame from a device that does not belong on this bus (fuzzing / injection)  (p=0%)
+[   9.33 s]         incident over: ALERT, 3.0 s, 11400 flagged frames, IDs -, 11400 frames with unknown IDs
+[   9.53 s]         bus 2392 frames/s | detector CPU 15.2% | queue max 6 | overflow 0 | CAN errors TEC 0 REC 0
+[  14.54 s]         bus 1990 frames/s | detector CPU 12.6% | queue max 1 | overflow 0 | CAN errors TEC 0 REC 0
+
+=== dos_unknown_id: 37,709 frames in 14.0 s, 11400 forged ===
+  attack detected (ALERT): YES, 7 ms after the first forged frame
+  described as: unknown CAN ID 0x000: frame from a device that does not belong on this bus (fuzzing / injection)
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 3802 frames/s, detector CPU max 15.2%, queue max 7, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.04 ms of their recorded time
+[   1.10 s]         bus 0 frames/s | detector CPU 0.0% | queue max 0 | overflow 0 | CAN errors TEC 0 REC 0
+Attack dos_known_id: 37,709 frames in 14.0 s, 11,400 injected/forged between 5 s and 8 s
+[   0.41 s]         nucleo: bus was idle > 1 s: detector history reset
+[   4.62 s]         bus 2394 frames/s | detector CPU 15.2% | queue max 7 | overflow 0 | CAN errors TEC 0 REC 0
+[   5.32 s] ALERT   forged 0x006 arriving faster than normal (extra frames injected)  (p=1%)
+[   9.63 s]         bus 2394 frames/s | detector CPU 15.2% | queue max 7 | overflow 0 | CAN errors TEC 0 REC 0
+[  10.13 s]         incident over: ALERT, 3.8 s, 11396 flagged frames, IDs 0x006
+[  10.13 s] ALERT   forged changes on 0x006  (p=0%)
+[  12.13 s]         incident over: ALERT, 1.0 s, 2 flagged frames, IDs 0x006
+[  12.13 s] ALERT   forged changes on 0x006  (p=0%)
+[  13.13 s]         incident over: ALERT, 0.0 s, 1 flagged frames, IDs 0x006
+[  13.13 s] ALERT   forged changes on 0x006  (p=0%)
+[  14.13 s]         incident over: ALERT, 0.0 s, 1 flagged frames, IDs 0x006
+[  14.63 s]         bus 1715 frames/s | detector CPU 10.9% | queue max 7 | overflow 0 | CAN errors TEC 0 REC 0
+
+=== dos_known_id: 37,709 frames in 14.0 s, 11400 forged ===
+  attack detected (ALERT): YES, 11 ms after the first forged frame
+  described as: forged 0x006 arriving faster than normal (extra frames injected)
+  false incidents (outside the attack): 3 ALERT, 0 WARNING
+  Nucleo: up to 3801 frames/s, detector CPU max 24.2%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.04 ms of their recorded time
+[   1.20 s]         bus 0 frames/s | detector CPU 0.0% | queue max 0 | overflow 0 | CAN errors TEC 0 REC 0
+Attack fuzz_known_ids: 36,484 frames in 14.0 s, 3,000 injected/forged between 5 s and 8 s
+[   0.41 s]         nucleo: bus was idle > 1 s: detector history reset
+[   4.72 s]         bus 2391 frames/s | detector CPU 15.1% | queue max 1 | overflow 0 | CAN errors TEC 0 REC 0
+[   5.42 s] WARNING unusual 0x2E1 byte 0 [value never seen in normal traffic]; 0x2E1 byte 1 [value never seen in normal traffic]  (p=99%)
+[   5.42 s] ALERT   forged 0x522 arriving faster than normal (extra frames injected)  (p=98%)
+[   9.73 s]         bus 2390 frames/s | detector CPU 15.1% | queue max 2 | overflow 0 | CAN errors TEC 0 REC 0
+[  14.74 s]         bus 1458 frames/s | detector CPU 9.2% | queue max 6 | overflow 0 | CAN errors TEC 0 REC 0
+[  15.14 s]         incident over: ALERT, 8.7 s, 3540 flagged frames, IDs 0x2E1, 0x6E0, 0x522, 0x636, 0x295, 0x65C
+
+=== fuzz_known_ids: 36,484 frames in 14.0 s, 3000 forged ===
+  attack detected (ALERT): YES, 114 ms after the first forged frame
+  described as: forged 0x522 arriving faster than normal (extra frames injected)
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 3394 frames/s, detector CPU max 21.6%, queue max 8, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.04 ms of their recorded time
+[   1.40 s]         bus 0 frames/s | detector CPU 0.0% | queue max 0 | overflow 0 | CAN errors TEC 0 REC 0
+Attack fuzz_masquerade: 33,484 frames in 14.0 s, 300 injected/forged between 5 s and 8 s
+[   0.31 s]         nucleo: bus was idle > 1 s: detector history reset
+[   5.42 s] ALERT   forged 0x00E byte 0 [value never seen in normal traffic]; 0x00E byte 1 [value never seen in normal traffic]; 0x00E byte 2 [value never seen in normal traffic]; 0x00E byte 3 [value never seen in normal traffic]; 0x00E byte 4 [value never seen in normal traffic]; 0x00E byte 5 [value never seen in normal traffic, contradicts 0x4FD byte 2]; 0x00E byte 7 [value never seen in normal traffic]  (p=99%)
+[   5.82 s]         bus 2391 frames/s | detector CPU 15.2% | queue max 7 | overflow 0 | CAN errors TEC 0 REC 0
+[   9.43 s]         incident over: ALERT, 3.0 s, 302 flagged frames, IDs 0x00E
+[  10.83 s]         bus 2392 frames/s | detector CPU 15.2% | queue max 4 | overflow 0 | CAN errors TEC 0 REC 0
+[  15.84 s]         bus 0 frames/s | detector CPU 0.0% | queue max 0 | overflow 0 | CAN errors TEC 0 REC 0
+
+=== fuzz_masquerade: 33,484 frames in 14.0 s, 300 forged ===
+  attack detected (ALERT): YES, 107 ms after the first forged frame
+  described as: forged 0x00E byte 0 [value never seen in normal traffic]; 0x00E byte 1 [value never seen in normal traffic]; 0x00E byte 2 [value never seen in normal traffic]; 0x00E byte 3 [value never seen in normal traffic]; 0x00E byte 4 [value never seen in normal traffic]; 0x00E byte 5 [value never seen in normal traffic, contradicts 0x4FD byte 2]; 0x00E byte 7 [value never seen in normal traffic]
+  false incidents (outside the attack): 0 ALERT, 0 WARNING
+  Nucleo: up to 2393 frames/s, detector CPU max 15.2%, queue max 11, overflow 0, CAN errors 0
+  replay timing: 99% of frames sent within 0.05 ms of their recorded time
+
+attack             detected delay ms false A/W bus fps  CPU % queue overflow
+dos_unknown_id         True        7    0/0       3802   15.2     7        0
+dos_known_id           True       11    3/0       3801   24.2     8        0
+fuzz_known_ids         True      114    0/0       3394   21.6     8        0
+fuzz_masquerade        True      107    0/0       2393   15.2    11        0
+saved /home/khalils/Desktop/Projects/TinyML_Can_Bus_Intrusion_Detection/results/live_attacks.json

@@ -1,0 +1,28 @@
+Building normal-traffic profile from the training ambient captures...
+  profile frames: 85,767,068 from the training days + 3,238,908 normal frames from the training attack recordings
+  56 IDs, 126 state-like bytes; searching signal pairs...
+  novelty check per byte: exact set 415, range 27, ignored 6 (of 448)
+  fold 1: 24 pairs found
+  fold 2: 26 pairs found
+  kept 11 pairs; rejected: {'not found in both halves': 20, 'noisy on the other half': 4}
+  done in 102 s
+
+Check on VAL ambient (97.1 min of normal driving never used to build the profile):
+frames with a pair surprise > 8 bits (P < 1/256): 151 = 1.6 per minute
+
+pair (byte <- partner)             U values  >8 bits  of frames
+0x394.b7 <- 0x160.b3            0.61      3       52    267,004
+0x559.b4 <- 0x412.b5            0.82      2       46     29,186
+0x340.b3 <- 0x251.b1            0.90      3       22    517,152
+0x596.b0 <- 0x371.b1            0.99      6       12     58,236
+0x541.b0 <- 0x371.b1            1.00      3       10     59,719
+0x595.b6 <- 0x596.b0            1.00      2        3     58,236
+0x595.b7 <- 0x596.b0            1.00      2        3     58,236
+0x50B.b3 <- 0x596.b0            1.00      3        2     58,236
+0x130.b6 <- 0x140.b6            1.00     16        1    534,148
+0x140.b6 <- 0x130.b6            0.97     16        0    534,148
+0x592.b1 <- 0x371.b1            1.00      2        0     57,684
+...
+pairs with zero surprising frames on val: 2 / 11
+
+Profile written to /home/khalils/Desktop/Projects/TinyML_Can_Bus_Intrusion_Detection/results/mirgu/mirgu_profile.json

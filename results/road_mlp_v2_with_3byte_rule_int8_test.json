@@ -1,0 +1,209 @@
+{
+  "alert": {
+    "per_attack": {
+      "correlated_signal / fabrication": {
+        "attack_frames": 2087,
+        "recall": 0.9981,
+        "captures_detected": "1/1",
+        "median_delay_ms": 40.6
+      },
+      "correlated_signal / masquerade": {
+        "attack_frames": 2087,
+        "recall": 0.9981,
+        "captures_detected": "1/1",
+        "median_delay_ms": 40.6
+      },
+      "fuzzing / fabrication": {
+        "attack_frames": 592,
+        "recall": 0.9392,
+        "captures_detected": "1/1",
+        "median_delay_ms": 0.0
+      },
+      "max_engine_coolant_temp / fabrication": {
+        "attack_frames": 43,
+        "recall": 0.8837,
+        "captures_detected": "1/1",
+        "median_delay_ms": 405.6
+      },
+      "max_engine_coolant_temp / masquerade": {
+        "attack_frames": 43,
+        "recall": 0.0,
+        "captures_detected": "0/1",
+        "median_delay_ms": null
+      },
+      "max_speedometer / fabrication": {
+        "attack_frames": 2445,
+        "recall": 0.9984,
+        "captures_detected": "1/1",
+        "median_delay_ms": 41.0
+      },
+      "max_speedometer / masquerade": {
+        "attack_frames": 2445,
+        "recall": 0.9984,
+        "captures_detected": "1/1",
+        "median_delay_ms": 41.0
+      },
+      "random_all8 / masquerade": {
+        "attack_frames": 2725,
+        "recall": 0.7659,
+        "captures_detected": "12/14",
+        "median_delay_ms": 240.0
+      },
+      "random_injected / fabrication": {
+        "attack_frames": 1223,
+        "recall": 0.3467,
+        "captures_detected": "8/13",
+        "median_delay_ms": 1294.7
+      },
+      "random_some / masquerade": {
+        "attack_frames": 2820,
+        "recall": 0.4436,
+        "captures_detected": "8/13",
+        "median_delay_ms": 239.8
+      },
+      "reverse_light_off / fabrication": {
+        "attack_frames": 673,
+        "recall": 0.9941,
+        "captures_detected": "1/1",
+        "median_delay_ms": 39.1
+      },
+      "reverse_light_off / masquerade": {
+        "attack_frames": 673,
+        "recall": 0.9941,
+        "captures_detected": "1/1",
+        "median_delay_ms": 39.1
+      },
+      "reverse_light_on / fabrication": {
+        "attack_frames": 1992,
+        "recall": 0.998,
+        "captures_detected": "1/1",
+        "median_delay_ms": 38.0
+      },
+      "reverse_light_on / masquerade": {
+        "attack_frames": 1992,
+        "recall": 0.998,
+        "captures_detected": "1/1",
+        "median_delay_ms": 38.0
+      }
+    },
+    "recall_all_attacks": 0.8571,
+    "fpr": 0.001595326272285458,
+    "fpr_clean_drives": 0.0004179203714727622,
+    "benign_flagged_in_attack_captures": 8143,
+    "false_alarms_per_min_ambient": 54.13,
+    "ambient_minutes": 22.9,
+    "benign_frames": 5879675
+  },
+  "alert_or_warning": {
+    "per_attack": {
+      "correlated_signal / fabrication": {
+        "attack_frames": 2087,
+        "recall": 0.9981,
+        "captures_detected": "1/1",
+        "median_delay_ms": 40.6
+      },
+      "correlated_signal / masquerade": {
+        "attack_frames": 2087,
+        "recall": 0.9981,
+        "captures_detected": "1/1",
+        "median_delay_ms": 40.6
+      },
+      "fuzzing / fabrication": {
+        "attack_frames": 592,
+        "recall": 0.9392,
+        "captures_detected": "1/1",
+        "median_delay_ms": 0.0
+      },
+      "max_engine_coolant_temp / fabrication": {
+        "attack_frames": 43,
+        "recall": 0.8837,
+        "captures_detected": "1/1",
+        "median_delay_ms": 405.6
+      },
+      "max_engine_coolant_temp / masquerade": {
+        "attack_frames": 43,
+        "recall": 0.0,
+        "captures_detected": "0/1",
+        "median_delay_ms": null
+      },
+      "max_speedometer / fabrication": {
+        "attack_frames": 2445,
+        "recall": 0.9984,
+        "captures_detected": "1/1",
+        "median_delay_ms": 41.0
+      },
+      "max_speedometer / masquerade": {
+        "attack_frames": 2445,
+        "recall": 0.9984,
+        "captures_detected": "1/1",
+        "median_delay_ms": 41.0
+      },
+      "random_all8 / masquerade": {
+        "attack_frames": 2725,
+        "recall": 0.978,
+        "captures_detected": "13/14",
+        "median_delay_ms": 80.0
+      },
+      "random_injected / fabrication": {
+        "attack_frames": 1223,
+        "recall": 0.9019,
+        "captures_detected": "12/13",
+        "median_delay_ms": 1149.8
+      },
+      "random_some / masquerade": {
+        "attack_frames": 2820,
+        "recall": 0.9333,
+        "captures_detected": "13/13",
+        "median_delay_ms": 79.6
+      },
+      "reverse_light_off / fabrication": {
+        "attack_frames": 673,
+        "recall": 0.9941,
+        "captures_detected": "1/1",
+        "median_delay_ms": 39.1
+      },
+      "reverse_light_off / masquerade": {
+        "attack_frames": 673,
+        "recall": 0.9941,
+        "captures_detected": "1/1",
+        "median_delay_ms": 39.1
+      },
+      "reverse_light_on / fabrication": {
+        "attack_frames": 1992,
+        "recall": 0.998,
+        "captures_detected": "1/1",
+        "median_delay_ms": 38.0
+      },
+      "reverse_light_on / masquerade": {
+        "attack_frames": 1992,
+        "recall": 0.998,
+        "captures_detected": "1/1",
+        "median_delay_ms": 38.0
+      }
+    },
+    "recall_all_attacks": 0.9778,
+    "fpr": 0.004146657765947948,
+    "fpr_clean_drives": 0.0036491171643308847,
+    "benign_flagged_in_attack_captures": 13580,
+    "false_alarms_per_min_ambient": 472.64,
+    "ambient_minutes": 22.9,
+    "benign_frames": 5879675
+  },
+  "clean_drives": {
+    "hours": 0.381,
+    "alert_events": 36,
+    "warning_events": 149,
+    "alert_events_per_hour": 94.52,
+    "warning_events_per_hour": 391.2,
+    "alert_frames_per_min": 54.13,
+    "warning_frames_per_min": 418.51,
+    "warning_frames_by_capture": {
+      "ambient_dyno_drive_benign_anomaly": 4962,
+      "ambient_dyno_drive_basic_short": 3025,
+      "ambient_highway_street_driving_diagnostics": 1577
+    },
+    "alert_frames_by_capture": {
+      "ambient_dyno_drive_benign_anomaly": 1237
+    }
+  }
+}
