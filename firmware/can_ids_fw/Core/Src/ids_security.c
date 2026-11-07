@@ -8,6 +8,8 @@
 #include "ids_entropy.h"
 #include "uecc/uECC.h"
 #include "secure_boot.h"
+#include "ids_indicators.h"
+#include "ids_secoc.h"
 
 extern UART_HandleTypeDef huart2;
 
@@ -186,6 +188,13 @@ static void key_wipe(void)             /* destroy both shares (one is already go
 {
   for (int i = 0; i < 5; i++) { BKP(i) = 0; BKSRAM[i] = 0; }
 }
+/* hand the current key (or its absence) to the SecOC layer; a tamper that wipes the key
+   therefore also ends CAN authentication */
+static void secoc_refresh_key(void)
+{
+  if (key_present()) { uint8_t k[16]; key_get(k); secoc_set_key(k); memset(k, 0, sizeof k); }
+  else secoc_set_key(NULL);
+}
 static volatile int tamper_pending;
 static int tamper_armed;
 static uint32_t release_tick;
@@ -250,6 +259,7 @@ void sec_tamper_init(void)
   NVIC_EnableIRQ(TAMP_STAMP_IRQn);
   if (GPIOC->IDR & GPIO_IDR_ID13) tamper_arm();   /* only arm with the switch closed (button up) */
   else release_tick = HAL_GetTick();
+  secoc_refresh_key();                             /* give the SecOC layer the key (or clear it) */
 }
 
 /* The backup registers are already erased by the hardware when this runs. */
@@ -272,7 +282,9 @@ void sec_tamper_poll(void)
     erased_by = "tamper";
     int zero = BKP(0) == 0 && BKP(1) == 0 && BKP(2) == 0 && BKP(3) == 0 && BKP(4) == 0 && BKP(5) == 0;
     key_wipe();                              /* share A is gone (hardware); clear share B too */
+    secoc_refresh_key();                     /* key gone: CAN authentication stops too */
     GPIOA->BSRR = GPIO_BSRR_BS5;             /* LD2 on: stays on until the next reset */
+    ind_tamper();                            /* 5 fast beeps */
     printf("{\"type\":\"tamper\",\"t_ms\":%lu,\"msg\":\"enclosure opened: device secret erased\","
            "\"backup_registers_zero\":%s}\r\n", HAL_GetTick(), zero ? "true" : "false");
     release_tick = HAL_GetTick();
@@ -403,6 +415,7 @@ void sec_secret_provision_ecdh(const char *hex128)
     BKP(5) = 0;
     BKP(6) = 1;                               /* first boot of this key */
     secret_state = SECRET_PRESENT;
+    secoc_refresh_key();                      /* the new key is also the SecOC key */
   }
   memset(dev_priv, 0, sizeof dev_priv); memset(shared, 0, sizeof shared); memset(k, 0, sizeof k);
   memset(drbg_seed, 0, sizeof drbg_seed);

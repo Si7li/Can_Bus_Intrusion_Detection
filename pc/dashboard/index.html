@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAN Bus IDS</title>
+<style>
+  :root {
+    --bg: #0b0f14; --panel: #121821; --panel2: #18202b; --line: #243040; --text: #e6edf3; --muted: #8b98a8;
+    --ok: #2ecc71; --warn: #f5b301; --alert: #ff4d4f; --blue: #3b9cff; --accent: #7aa2ff; --attack: rgba(255,77,79,.14);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: #0e141b; flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+  header .sub { color: var(--muted); font-size: 12.5px; }
+  .chips { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .chip { padding: 4px 10px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .chip b { color: var(--text); font-weight: 600; }
+  .chip.bad { border-color: var(--alert); color: var(--alert); }
+  main { padding: 16px 20px 28px; display: grid; gap: 14px; grid-template-columns: repeat(12, 1fr); max-width: 1500px; margin: 0 auto; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  .card h2 { margin: 0 0 10px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+  .span12 { grid-column: span 12; } .span8 { grid-column: span 8; } .span6 { grid-column: span 6; } .span4 { grid-column: span 4; } .span3 { grid-column: span 3; }
+  @media (max-width: 1100px) { .span8, .span6, .span4, .span3 { grid-column: span 12; } }
+
+  /* verdict banner */
+  .banner { display: flex; align-items: center; gap: 22px; padding: 16px 20px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); }
+  .banner .state { font-size: 26px; font-weight: 750; letter-spacing: .5px; }
+  .banner .what { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .banner.ok { border-color: rgba(46,204,113,.45); } .banner.ok .state { color: var(--ok); }
+  .banner.warn { border-color: rgba(245,179,1,.6); background: linear-gradient(90deg, rgba(245,179,1,.10), var(--panel) 60%); } .banner.warn .state { color: var(--warn); }
+  .banner.alert { border-color: var(--alert); background: linear-gradient(90deg, rgba(255,77,79,.18), var(--panel) 60%); } .banner.alert .state { color: var(--alert); }
+  .banner.off .state { color: var(--muted); }
+  .leds { display: flex; gap: 14px; margin-left: auto; }
+  .led { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+  .led i { width: 22px; height: 22px; border-radius: 50%; background: #1d2530; border: 1px solid #2c3746; display: block; }
+  .led.on.blue i { background: var(--blue); box-shadow: 0 0 14px var(--blue); animation: blink .16s steps(2) infinite; }
+  .led.on.green i { background: var(--ok); box-shadow: 0 0 14px var(--ok); }
+  .led.on.yellow i { background: var(--warn); box-shadow: 0 0 14px var(--warn); }
+  .led.on.red i { background: var(--alert); box-shadow: 0 0 16px var(--alert); }
+  @keyframes blink { 50% { opacity: .25; box-shadow: none; } }
+
+  /* gauges */
+  .big { font-size: 46px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.05; }
+  .big small { font-size: 16px; color: var(--muted); font-weight: 500; margin-left: 4px; }
+  .bar { height: 8px; border-radius: 4px; background: var(--panel2); overflow: hidden; margin-top: 10px; }
+  .bar > div { height: 100%; background: var(--accent); width: 0; transition: width .2s; }
+  .bar.hot > div { background: var(--alert); }
+  .note { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .wheel { width: 64px; height: 64px; border-radius: 50%; border: 6px solid #3a4658; position: relative; transition: transform .2s; flex: none; }
+  .wheel::before { content: ""; position: absolute; left: 50%; top: 4px; bottom: 50%; width: 6px; margin-left: -3px; background: #3a4658; border-radius: 3px; }
+  .wheel::after { content: ""; position: absolute; left: 4px; right: 4px; top: 50%; height: 6px; margin-top: -3px; background: #3a4658; border-radius: 3px; }
+  .row { display: flex; align-items: center; gap: 16px; }
+  canvas { width: 100%; height: 150px; display: block; }
+
+  /* tables / lists */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td, th { padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.foreign td { color: var(--alert); font-weight: 600; }
+  .mini { height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; min-width: 60px; }
+  .mini > div { height: 100%; background: var(--blue); }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 700; }
+  .badge.ALERT { background: rgba(255,77,79,.18); color: var(--alert); } .badge.WARNING { background: rgba(245,179,1,.16); color: var(--warn); }
+  .incident { padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .incident .meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .incident .gt { font-size: 12px; margin-top: 3px; }
+  .gt.hit { color: var(--ok); } .gt.fa { color: var(--warn); }
+  .scroll { max-height: 340px; overflow: auto; }
+  .layers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 800px) { .layers { grid-template-columns: 1fr; } }
+  .layer { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .layer h3 { margin: 0 0 8px; font-size: 13px; }
+  .check { display: flex; gap: 8px; font-size: 12.5px; padding: 3px 0; }
+  .check .s { width: 16px; text-align: center; flex: none; }
+  .ok-c { color: var(--ok); } .bad-c { color: var(--alert); } .warn-c { color: var(--warn); } .mut-c { color: var(--muted); }
+  .log div { font-size: 12.5px; padding: 3px 0; border-bottom: 1px dashed #1e2835; }
+  .log .t { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 8px; }
+  .log .alert { color: var(--alert); } .log .warning { color: var(--warn); } .log .attack { color: var(--accent); } .log .bad { color: var(--alert); }
+  .attacks { display: flex; flex-wrap: wrap; gap: 6px; }
+  .attacks button { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .attacks button:hover { border-color: var(--alert); }
+  .attacks button.test { border-color: rgba(122,162,255,.5); }
+  code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .err { color: var(--alert); padding: 8px 20px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>CAN Bus Intrusion Detection, live</h1>
+    <div class="sub">STM32 NUCLEO-F446RE · int8 neural network + rules on every frame · CAN-MIRGU car</div>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+<div class="err" id="err" hidden></div>
+<main>
+  <section class="banner span12 off" id="banner">
+    <div>
+      <div class="state" id="state">CONNECTING…</div>
+      <div class="what" id="what">waiting for the demo server</div>
+    </div>
+    <div class="leds">
+      <div class="led blue" id="led-blue"><i></i>CAN</div>
+      <div class="led green" id="led-green"><i></i>OK</div>
+      <div class="led yellow" id="led-yellow"><i></i>WARNING</div>
+      <div class="led red" id="led-red"><i></i>ALERT</div>
+    </div>
+  </section>
+
+  <section class="card span3">
+    <h2>Vehicle speed</h2>
+    <div class="big" id="speed">–<small>km/h</small></div>
+    <div class="bar" id="speedbar"><div></div></div>
+    <div class="note">decoded from ID 0x386 (wheel speeds) as it crosses the bus</div>
+  </section>
+  <section class="card span3">
+    <h2>Steering angle</h2>
+    <div class="row"><div class="wheel" id="wheel"></div><div class="big" id="steer">–<small>°</small></div></div>
+    <div class="note">decoded from ID 0x2B0 (steering angle sensor)</div>
+  </section>
+  <section class="card span3">
+    <h2>CAN traffic</h2>
+    <div class="big" id="fps">–<small>frames/s</small></div>
+    <div class="note" id="fpsnote">sent by the car · checked by the Nucleo</div>
+  </section>
+  <section class="card span3">
+    <h2>Detector on the chip</h2>
+    <div class="big" id="cpu">–<small>% CPU</small></div>
+    <div class="note" id="cpunote">63 µs per frame (rules + features + int8 MLP)</div>
+  </section>
+
+  <section class="card span8">
+    <h2>Speed (km/h) and steering (°), last 60 s · red = attack frames on the bus</h2>
+    <canvas id="chart"></canvas>
+  </section>
+  <section class="card span4">
+    <h2>Frames per second, last 60 s</h2>
+    <canvas id="chartfps"></canvas>
+    <div class="note"><span style="color:var(--accent)">■</span> sent on the bus &nbsp; <span style="color:var(--ok)">■</span> checked by the IDS</div>
+  </section>
+
+  <section class="card span6">
+    <h2>Incidents (from the Nucleo, signature-checked)</h2>
+    <div class="scroll" id="incidents"><div class="note">none yet: normal driving</div></div>
+  </section>
+  <section class="card span6">
+    <h2>Traffic per CAN ID (last second) · red = not one of this car's IDs</h2>
+    <div class="scroll"><table><thead><tr><th>ID</th><th>signal</th><th class="num">frames/s</th><th></th></tr></thead><tbody id="ids"></tbody></table></div>
+  </section>
+
+  <section class="card span12">
+    <h2>Device protection: three layers</h2>
+    <div class="layers" id="layers"></div>
+  </section>
+
+  <section class="card span6">
+    <h2>Event log</h2>
+    <div class="scroll log" id="log"></div>
+  </section>
+  <section class="card span6">
+    <h2>Launch an attack (or from a terminal: <code>python pc/attack.py &lt;name&gt;</code>)</h2>
+    <div class="attacks" id="attacks"></div>
+    <div class="note">blue outline = real attack from the test split (never used to build the detector). Last attacks:</div>
+    <table><tbody id="attacklist"></tbody></table>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const clock = t => new Date(t * 1000).toLocaleTimeString([], {hour12: false});
+let catalogShown = false;
+
+function line(canvas, series, opts) {
+  const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== w * dpr) { canvas.width = w * dpr; canvas.height = h * dpr; }
+  const c = canvas.getContext("2d");
+  c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h);
+  const n = Math.max(...series.map(s => s.data.length), 2), pad = 26;
+  if (opts.shade) {                                  // attack periods
+    c.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--attack");
+    const x = i => pad + (w - pad) * i / (n - 1);
+    for (let i = 0; i < opts.shade.length; i++) {      // one band per continuous attack period
+      if (!opts.shade[i]) continue;
+      let j = i; while (j + 1 < opts.shade.length && opts.shade[j + 1]) j++;
+      c.fillRect(x(i), 0, Math.max(2, x(j) - x(i)), h);
+      i = j;
+    }
+  }
+  c.strokeStyle = "#243040"; c.fillStyle = "#8b98a8"; c.font = "11px system-ui"; c.lineWidth = 1;
+  for (const s of series) {
+    const lo = s.min, hi = s.max;
+    c.strokeStyle = s.color; c.lineWidth = 2; c.beginPath();
+    s.data.forEach((v, i) => {
+      const x = pad + (w - pad) * i / (n - 1), y = h - 6 - (h - 14) * (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo);
+      i ? c.lineTo(x, y) : c.moveTo(x, y);
+    });
+    c.stroke();
+    if (s.label) { c.fillStyle = s.color; c.fillText(s.label, 2, s.labelY ?? 12); }
+  }
+}
+
+function check(ok, text, state) {
+  const cls = state || (ok ? "ok-c" : "bad-c"), sym = cls === "ok-c" ? "✔" : cls === "warn-c" ? "!" : cls === "mut-c" ? "·" : "✖";
+  return `<div class="check"><span class="s ${cls}">${sym}</span><span>${text}</span></div>`;
+}
+
+function render(s) {
+  const car = s.car, nu = s.nucleo, st = nu.status || {}, boot = nu.boot || {};
+  $("err").hidden = !(car.error || nu.error);
+  $("err").textContent = [car.error, nu.error].filter(Boolean).join(" · ");
+
+  // header chips
+  const mm = x => `${Math.floor(x / 60)}:${String(x % 60).padStart(2, "0")}`;
+  $("chips").innerHTML = [
+    `<span class="chip">car <b>${esc(car.state)}</b> · ${mm(car.drive_t)} / ${mm(car.length)} · loop ${car.loops + 1}</span>`,
+    `<span class="chip ${nu.connected ? "" : "bad"}">Nucleo <b>${nu.connected ? "online" : "no data"}</b></span>`,
+    `<span class="chip">serial link <b>${nu.link.ok}</b> lines verified${nu.untrusted ? ` · <b style="color:var(--alert)">${nu.untrusted} untrusted</b>` : ""}</span>`,
+  ].join("");
+
+  // verdict banner + LEDs
+  const inc = s.incidents.find(i => i.open), b = $("banner");
+  let cls = "ok", state = "ALL NORMAL", what = "every frame checked: known IDs, normal timing, values seen in normal driving";
+  if (!nu.connected) { cls = "off"; state = "NO DATA FROM THE NUCLEO"; what = "is the board connected and the server started?"; }
+  else if (inc && inc.level === "ALERT") { cls = "alert"; state = "ALERT: ATTACK DETECTED"; what = inc.what; }
+  else if (inc) { cls = "warn"; state = "WARNING: UNUSUAL TRAFFIC"; what = inc.what; }
+  if (nu.tamper_recent) { cls = "alert"; state = "TAMPER: ENCLOSURE OPENED"; what = "device secret erased in hardware"; }
+  b.className = `banner span12 ${cls}`; $("state").textContent = state; $("what").textContent = what;
+  for (const k of ["blue", "green", "yellow", "red"]) $("led-" + k).classList.toggle("on", !!nu.leds[k]);
+
+  // gauges
+  const attack = car.attack_running.length > 0;
+  $("speed").innerHTML = `${car.speed.toFixed(0)}<small>km/h</small>`;
+  $("speedbar").firstElementChild.style.width = Math.min(100, car.speed / 2) + "%";
+  $("speedbar").classList.toggle("hot", car.speed > 130);
+  $("steer").innerHTML = `${car.steering.toFixed(0)}<small>°</small>`;
+  $("wheel").style.transform = `rotate(${Math.max(-540, Math.min(540, car.steering))}deg)`;
+  $("fps").innerHTML = `${car.fps.toLocaleString()}<small>frames/s</small>`;
+  $("fpsnote").textContent = `Nucleo checked ${(st.fps ?? 0).toLocaleString()}/s · ${car.n_ids} IDs active` + (attack ? ` · attack running: ${car.attack_running.join(", ")}` : "");
+  $("cpu").innerHTML = `${st.cpu_pct ?? "–"}<small>% CPU</small>`;
+  $("cpunote").textContent = `63 µs per frame · queue max ${st.queue_max ?? "–"} · frames lost ${st.overflow ?? "–"} · CAN errors ${st.tec ?? 0}/${st.rec ?? 0}`;
+
+  // charts
+  const h = s.history, atkT = s.attacks.map(a => [a.wall, a.wall + a.seconds]);
+  const shade = h.map(p => atkT.some(([a, z]) => p.t >= a && p.t <= z));
+  line($("chart"), [
+    {data: h.map(p => p.speed), min: 0, max: Math.max(140, ...h.map(p => p.speed)), color: "#7aa2ff", label: "speed"},
+    {data: h.map(p => p.steering), min: -540, max: 540, color: "#c792ea", label: "steering", labelY: 26},
+  ], {shade});
+  const fmax = Math.max(2500, ...h.map(p => Math.max(p.fps_car, p.fps_ids)));
+  line($("chartfps"), [
+    {data: h.map(p => p.fps_car), min: 0, max: fmax, color: "#7aa2ff"},
+    {data: h.map(p => p.fps_ids), min: 0, max: fmax, color: "#2ecc71"},
+  ], {shade});
+
+  // incidents
+  $("incidents").innerHTML = s.incidents.length ? s.incidents.map(i => `
+    <div class="incident">
+      <span class="badge ${i.level}">${i.level}</span> <b>${esc(i.what)}</b>
+      <div class="meta">${clock(i.t)} · ${i.open ? "open" : `${i.duration_s} s, ${i.frames} flagged frames`} · ${i.signed ? "✔ signed by the device" : "unsigned line"}</div>
+      ${i.ids.length ? `<div class="meta">${i.ids.map(e => `${esc(e.id)} (${e.frames})`).join(" · ")}</div>` : ""}
+      <div class="gt ${i.attack ? "hit" : "fa"}">${i.attack ? `ground truth: attack <b>${esc(i.attack)}</b> was running${i.delay_s != null ? `, detected ${i.delay_s.toFixed(2)} s after its first frame` : ""}` : "ground truth: no attack running (false alarm)"}</div>
+    </div>`).join("") : `<div class="note">none yet: normal driving</div>`;
+
+  // traffic per ID
+  const maxr = Math.max(1, ...car.ids.map(r => r.fps));
+  $("ids").innerHTML = car.ids.map(r => `<tr class="${r.normal ? "" : "foreign"}"><td>${r.id}</td><td>${esc(r.name || (r.normal ? "" : "not in this car"))}</td>
+    <td class="num">${r.fps}</td><td><div class="mini"><div style="width:${100 * r.fps / maxr}%;${r.normal ? "" : "background:var(--alert)"}"></div></div></td></tr>`).join("");
+
+  // protection layers
+  const sb = boot.secure_boot || {}, link = nu.link;
+  $("layers").innerHTML = `
+    <div class="layer"><h3>Network: the IDS</h3>
+      ${check(nu.connected, `detector running on every frame (${(st.fps ?? 0).toLocaleString()}/s)`)}
+      ${check(st.overflow === 0, `frames lost: ${st.overflow ?? "–"}`)}
+      ${st.secoc ? check(st.secoc.key, `SecOC authentication on 0x386 / 0x2B0: ${st.secoc.key ? st.secoc.ok.toLocaleString() + " frames verified (AES-CMAC)" : "key erased"}`, st.secoc.key ? "ok-c" : "bad-c") : ""}
+      ${check(nu.has_key && link.ok > 0, `serial link signed (HMAC-SHA256): ${link.ok} lines verified`)}
+      ${check(!nu.untrusted, `forged / replayed lines rejected: ${nu.untrusted}`, nu.untrusted ? "warn-c" : "ok-c")}
+      ${check(nu.self_test && nu.self_test.includes("PASSED"), esc(nu.self_test || "self-test result not seen yet"), nu.self_test ? null : "mut-c")}
+    </div>
+    <div class="layer"><h3>Physical: the board</h3>
+      ${check(boot.rdp === "level1", `read protection: ${esc(boot.rdp || "?")}${boot.rdp === "level0" ? " (development)" : ""}`, boot.rdp === "level1" ? "ok-c" : "warn-c")}
+      ${check((boot.bor || "").startsWith("level3"), `brown-out reset: ${esc(boot.bor || "?")}`)}
+      ${check(boot.secret === "present", `device secret: ${esc(boot.secret || "?")}${boot.erased_by ? ` (by ${esc(boot.erased_by)})` : ""}${boot.secret_id ? ` · id ${boot.secret_id}` : ""}`)}
+      ${check(!nu.tamper_recent, nu.tamper_recent ? "TAMPER switch triggered" : "tamper switch armed (blue button)")}
+    </div>
+    <div class="layer"><h3>Logical: the firmware</h3>
+      ${check(sb.verified, sb.verified ? `secure boot: signature verified, version ${sb.fw_version} (min ${sb.min_version}, ${sb.check_ms} ms)` : "secure boot: not verified")}
+      ${check((boot.wrp_sectors || []).length >= 2, `bootloader write-protected: sectors ${esc((boot.wrp_sectors || []).join(", ") || "none")}`)}
+      ${check(!!boot.watchdog_ms, `watchdog: ${boot.watchdog_ms ?? "?"} ms · last reset: ${esc(boot.reset || "?")}`)}
+      ${check(!boot.demo_commands, boot.demo_commands ? "demo commands enabled (H = hang test)" : "demo commands disabled", boot.demo_commands ? "mut-c" : "ok-c")}
+    </div>`;
+
+  // log + attacks
+  $("log").innerHTML = s.log.map(e => `<div class="${e.kind}"><span class="t">${clock(e.t)}</span>${esc(e.text)}</div>`).join("");
+  if (!catalogShown && s.catalog.length) {
+    catalogShown = true;
+    $("attacks").innerHTML = s.catalog.map(a => `<button class="${a.split === "test" ? "test" : ""}" title="${esc(a.about)}" data-n="${a.name}">${a.name}</button>`).join("");
+    $("attacks").onclick = e => { const n = e.target.dataset.n; if (n) fetch("/api/attack", {method: "POST", body: JSON.stringify({name: n, seconds: 15})}); };
+  }
+  $("attacklist").innerHTML = s.attacks.map(a => `<tr><td>${clock(a.wall)}</td><td><b>${esc(a.name)}</b></td>
+    <td>${a.alert_s != null ? `<span class="ok-c">ALERT after ${a.alert_s.toFixed(2)} s</span>` : a.warning_s != null ? `<span class="warn-c">WARNING after ${a.warning_s.toFixed(2)} s</span>` : `<span class="mut-c">no verdict (yet)</span>`}</td></tr>`).join("");
+}
+
+async function tick() {
+  try {
+    const r = await fetch("/api/state", {cache: "no-store"});
+    render(await r.json());
+  } catch (e) {
+    $("banner").className = "banner span12 off"; $("state").textContent = "DEMO SERVER NOT RUNNING";
+    $("what").textContent = "start it with: python pc/demo_server.py";
+  }
+  setTimeout(tick, 250);
+}
+tick();
+</script>
+</body>
+</html>

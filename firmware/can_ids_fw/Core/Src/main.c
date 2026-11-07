@@ -26,6 +26,8 @@
 #include "ids_detector.h"
 #include "ids_selftest_data.h"
 #include "ids_security.h"
+#include "ids_indicators.h"
+#include "ids_secoc.h"
 #ifndef IDS_DATASET_NAME            /* headers exported before the CAN-MIRGU version */
 #define IDS_DATASET_NAME "ROAD"
 #endif
@@ -181,10 +183,12 @@ static inline uint32_t us_now(void) { return TIM2->CNT; }
 
 static void json_reasons(uint8_t r, char *out)        /* -> ["model","strong"] */
 {
-  static const char *names[4] = { "unknown_id", "too_fast", "model", "strong" };
+  /* bits 0-3: detector; bits 4-6: SecOC authentication (ids_secoc.h) */
+  static const char *names[7] = { "unknown_id", "too_fast", "model", "strong",
+                                  "auth_mac", "auth_replay", "auth_missing" };
   char *p = out;
   *p++ = '[';
-  for (int k = 0; k < 4; k++)
+  for (int k = 0; k < 7; k++)
     if (r & (1u << k)) p += sprintf(p, "%s\"%s\"", p[-1] == '[' ? "" : ",", names[k]);
   *p++ = ']'; *p = 0;
 }
@@ -240,12 +244,24 @@ static void incident_add(const can_frame_t *c, const ids_result_t *r)
   if (r->level > inc.level) {          /* new incident, or WARNING -> ALERT */
     char rs[64], nv[24], pr[24];
     inc.level = r->level;
+    if (r->level == IDS_ALERT) ind_alert();   /* 3 beeps */
     json_reasons(r->reasons, rs); json_bytes(r->novel_bytes, nv); json_bytes(r->pair_bytes, pr);
     printf("{\"type\":\"alert\",\"t_ms\":%lu,\"level\":\"%s\",\"id\":\"0x%03X\",\"reasons\":%s,"
            "\"novel_bytes\":%s,\"pair_bytes\":%s,\"p\":%u}\r\n",
            c->t_us / 1000u, ids_level_name(r->level), c->id, rs, nv, pr,
            (unsigned)(((int)r->score_q + 128) * 100 / 256));
   }
+}
+
+/* A failed SecOC check (bad MAC, replay, or a protected frame with no authenticator) is an
+   attack on an authenticated ID: raise an ALERT incident on that ID, even when its bytes
+   look normal (the case the plain detector misses). */
+static void raise_secoc(uint32_t t_us, const secoc_fail_t *sf)
+{
+  can_frame_t c = { .t_us = t_us, .id = sf->id, .dlc = 8 };
+  ids_result_t r = { .level = IDS_ALERT, .reasons = sf->reason, .score_q = -128 };
+  st_alert++;
+  incident_add(&c, &r);
 }
 
 static void process_frame(const can_frame_t *c)
@@ -255,10 +271,18 @@ static void process_frame(const can_frame_t *c)
   if (any && c->t_us - last_t > IDLE_RESET_US) {
     if (inc.active) incident_end();
     ids_reset();
+    secoc_reset();
     printf("{\"type\":\"info\",\"msg\":\"bus was idle > 1 s: detector history reset\"}\r\n");
   }
   last_t = c->t_us;
   any = 1;
+
+  /* SecOC first: it pairs each protected frame with its authenticator and consumes the
+     authenticator frame (not a car signal, so the detector never sees it). */
+  secoc_fail_t sf;
+  int consumed = secoc_frame(c->id, c->dlc, c->data, c->t_us, &sf);
+  if (sf.reason) raise_secoc(c->t_us, &sf);
+  if (consumed) { st_frames++; ind_frame(); return; }
 
   ids_frame_t f = { c->t_us, c->id, c->dlc, {0} };
   memcpy(f.data, c->data, 8);
@@ -267,6 +291,7 @@ static void process_frame(const can_frame_t *c)
   ids_process(&f, &r);
   st_busy_cyc += DWT->CYCCNT - t0;
   st_frames++;
+  ind_frame();
   if (r.level == IDS_ALERT) st_alert++;
   else if (r.level == IDS_WARNING) st_warn++;
   if (r.level != IDS_NORMAL) incident_add(c, &r);
@@ -314,6 +339,8 @@ int main(void)
          HAL_RCC_GetHCLKFreq(), HAL_RCC_GetPCLK1Freq());
   sec_tamper_init();                  /* tamper switch (blue button) guards the device secret */
   sec_report_boot();                  /* reset cause + protection settings (RDP, BOR, WRP) */
+  ind_init();                         /* status LEDs + buzzer: 0.3 s wiring check, BEFORE CAN starts
+                                         (blocking: frames arriving meanwhile would overflow the queue) */
   ids_selftest();                     /* before CAN starts: nothing arrives during the test */
 
   /* TIM2 = free-running 32-bit microsecond clock (timer clock = 2 x APB1 = 90 MHz). */
@@ -372,6 +399,7 @@ int main(void)
     sec_watchdog_kick();
     sec_poll_commands();
     sec_tamper_poll();
+    ind_poll(inc.active, inc.level);
 
 #if CAN_TEST_TX
     /* every 100 ms: send ID 0x123 = [counter (4 bytes, little endian), CA FE BA BE] */
@@ -405,7 +433,9 @@ int main(void)
       process_frame(&f);
     }
 
-    /* 2) an incident ends after 1 s without flagged frames */
+    /* 2) a protected frame whose authenticator never arrived; then close idle incidents */
+    secoc_fail_t sf;
+    if (secoc_poll(us_now(), &sf)) raise_secoc(us_now(), &sf);
     if (inc.active && us_now() - inc.last_us > INCIDENT_GAP_US) incident_end();
 
     /* 3) once per second: status. TEC/REC = CAN error counters (should stay 0). */
@@ -415,11 +445,11 @@ int main(void)
       uint32_t esr = hcan1.Instance->ESR;
       uint32_t cpu10 = (uint32_t)((uint64_t)st_busy_cyc * 1000u / ((uint64_t)HAL_RCC_GetHCLKFreq() * ms / 1000u));
       printf("{\"type\":\"status\",\"t_ms\":%lu,\"fps\":%lu,\"cpu_pct\":%lu.%lu,\"queue_max\":%lu,\"overflow\":%lu,"
-             "\"alert_frames\":%lu,\"warning_frames\":%lu,\"incidents\":%lu,\"tec\":%lu,\"rec\":%lu,\"secret\":\"%s\",\"mac_us\":%lu%s}\r\n",
+             "\"alert_frames\":%lu,\"warning_frames\":%lu,\"incidents\":%lu,\"tec\":%lu,\"rec\":%lu,\"secret\":\"%s\",\"mac_us\":%lu,%s%s}\r\n",
              us_now() / 1000u, st_frames * 1000u / ms, cpu10 / 10u, cpu10 % 10u, st_qmax, rx_overflow,
              st_alert, st_warn, total_incidents, (esr >> 16) & 0xFF, (esr >> 24) & 0xFF,
              sec_secret_state(), sec_last_hmac_cycles() / (HAL_RCC_GetHCLKFreq() / 1000000u),
-             (esr & CAN_ESR_BOFF) ? ",\"bus_off\":true" : "");
+             secoc_json(), (esr & CAN_ESR_BOFF) ? ",\"bus_off\":true" : "");
       st_frames = st_alert = st_warn = st_busy_cyc = st_qmax = 0;
     }
   }

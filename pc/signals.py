@@ -73,6 +73,13 @@ def describe(ev: dict) -> str:
     if "unknown_id" in reasons:
         return f"unknown CAN ID {ev['id']}: frame from a device that does not belong on this bus (fuzzing / injection)"
     can_id = int(ev["id"], 16)
+    name = signal_name(can_id, None)
+    if "auth_mac" in reasons:
+        return f"forged {name} on authenticated ID {ev['id']}: message authentication code invalid (SecOC)"
+    if "auth_replay" in reasons:
+        return f"replayed {name} on authenticated ID {ev['id']}: freshness counter not newer (SecOC)"
+    if "auth_missing" in reasons:
+        return f"injected frame on authenticated ID {ev['id']}: no valid authenticator (SecOC)"
     novel, pair = ev.get("novel_bytes", []), ev.get("pair_bytes", [])
     parts = []
     for b in sorted(set(novel) | set(pair)):

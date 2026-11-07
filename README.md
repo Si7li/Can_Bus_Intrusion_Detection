@@ -186,6 +186,32 @@ python pc/live_demo.py --latency                               # transport delay
 python pc/live_attacks.py --all                                # DoS floods + fuzzing on real IDs (not in ROAD), ~2 min
 ```
 
+### Live demo with dashboard (normal driving + attacks on command)
+
+```bash
+python pc/demo_server.py               # terminal 1: car traffic on the bus + Nucleo monitor; open http://localhost:8050
+python pc/attack.py list               # terminal 2: available attacks
+python pc/attack.py max_speedometer    # inject it into the live traffic; prints the Nucleo's verdict and delay
+```
+
+The server loops 41 minutes of a clean CAN-MIRGU drive (Day 6, never used to build the
+detector) and decodes speed and steering from the frames. Two IDs (speedometer 0x386,
+steering 0x2B0) are authenticated with AES-CMAC (SecOC-style): `python pc/attack.py speed_spoof`
+forges a believable speed the AI misses, and the SecOC layer catches it (`results/RESULTS.md` section 9). The dashboard shows the live
+traffic, the IDS verdict, incidents with ground truth, the three protection layers, and
+virtual LEDs mirroring the board. Attacks can also be launched with its buttons.
+
+Status LEDs and buzzer on the Nucleo's Arduino header (`Core/Inc/ids_indicators.h`). Each LED: pin →
+resistor (110–330 Ω) → long leg; short leg → GND:
+
+| Part | Pin | Meaning |
+|---|---|---|
+| Blue LED | D8 (PA9) | blinks while CAN frames arrive |
+| Green LED | D2 (PA10) | everything normal |
+| Yellow LED | D4 (PB5) | WARNING incident open |
+| Red LED | D7 (PA8) | ALERT incident open |
+| Passive buzzer | D9 (PC7) | 3 beeps per ALERT, 5 fast beeps on a tamper (2-leg buzzer: 100–120 Ω in series) |
+
 ### Device protection (step 3)
 
 ```bash

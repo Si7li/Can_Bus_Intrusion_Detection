@@ -645,3 +645,99 @@ chip (entropy source + ECDH, split between tamper-erased and unlock-erased memor
 serial lines, secure boot with anti-rollback, write protection, read protection. Every
 protection has a test in `pc/security_demo.py` or `pc/secure_boot_demo.py`, logged in
 `results/security_tests.txt`.
+
+## 8. Live demo: normal driving, attacks on command, dashboard
+
+`pc/demo_server.py` loops 41 minutes of a clean drive of the CAN-MIRGU car on the bus. It uses
+Day 6, minutes 6 to 47.7, where the car is moving, at ~1,900 frames/s. `pc/attack.py <name>`
+mixes an attack into the live traffic and reports the Nucleo's verdict. The dashboard
+(http://localhost:8050) shows speed and steering decoded from the frames, the traffic per ID,
+the incidents with ground truth, and the protection state. Runs of 2026-11-07 (firmware v5, MIRGU model):
+
+| Attack (8–15 s each) | Source | Live verdict |
+|---|---|---|
+| max_speedometer | real MIRGU recording, test split | **ALERT 0.14–0.21 s** (0x386 too fast) |
+| steering_angle_replay | real, test split | **ALERT 0.07–0.14 s** (0x2B0 too fast) |
+| parking_brake | real, test split | **ALERT 0.10 s** (value never seen + too fast) |
+| fuzzing_random_ids | real, test split | **ALERT 0.08 s** (unknown IDs) |
+| dos (0x000 flood, the car's frames dropped) | generated | **ALERT 0.02–0.09 s** |
+| fuzzing (random IDs, 500/s) | generated | **ALERT 0.01 s** |
+| unknown_id (0x6FF, 10/s) | generated | **ALERT 0.06 s** |
+| speed_spoof (0x386 at normal timing, forged 180 km/h) | generated masquerade | **missed** |
+
+- **No false alarms** during the normal driving between attacks, about 10 minutes in these
+  runs. Nothing lost: 0 frames once the boot-time issue below was fixed. Every incident was
+  signature-checked.
+- **Why the speed spoof is missed:** the wheel speed is a 14-bit number spread over 2 bytes,
+  and the high byte also carries flag bits, so its normal range is 0–207. A forged 180 km/h
+  (`80 16` per wheel) keeps every byte inside its normal range, and the per-byte checks and
+  the network see nothing unusual. Seeing it would need a *signal-level* rule, for example
+  "speed cannot jump by 100 km/h in one 20 ms frame". It is the same family as the missed
+  wiper masquerade (section 6). The dashboard still shows the forged 180 km/h, which makes
+  the limit visible in a demo.
+- **Bug found and fixed:** the first LED firmware ran its 0.3 s boot wiring check *after* CAN
+  reception had started. About 570 frames arrived meanwhile and 361 were lost (the
+  256-frame queue overflowed). The check now runs before CAN starts: 0 frames lost.
+- **Speed and steering decoding** use the public Hyundai/Kia layout (opendbc). It fits the
+  data (0–122 km/h, the four wheels agree within 1.2 km/h), but MIRGU does not publish its
+  signal definitions, so the decoded values are labelled as such.
+
+## 9. SecOC authentication: closing the masquerade blind spot
+
+The detector's blind spot (sections 6, 8) is the **masquerade with believable values**: an
+attacker replaces a legitimate frame's data with a value that is in range and arrives at the
+normal rate, so nothing on the bus looks wrong. The live `speed_spoof` (forged 180 km/h on
+0x386, normal timing) was **missed** by the rules and the network.
+
+Message authentication closes it, the way AUTOSAR **SecOC** (Secure Onboard Communication)
+does: each protected frame carries a cryptographic tag that only the genuine sender can
+produce, so a forged value is rejected whatever it is.
+
+- **What is protected:** two IDs, the speedometer `0x386` and the steering-angle sensor
+  `0x2B0`. The sending ECU (here the PC playing the car) sends an authenticator in a companion
+  frame (`0x786` / `0x7B0`): a 32-bit freshness counter plus the first 32 bits of
+  **AES-CMAC**(K, `data ID || DLC || data || freshness`). K = first 16 bytes of
+  SHA-256("can-ids secoc v1" || device secret): it is derived from the chip's own device
+  secret, so **a tamper (which erases the secret) also ends authentication**, and there is no
+  separate key to provision.
+- **Difference from AUTOSAR SecOC:** there the truncated freshness and MAC go *inside* the
+  protected frame, replacing payload bytes. Here they travel in a companion frame so the
+  car's original data, and the detector trained on it, are unchanged. The cost is that the
+  companion frame can be lost or reordered (below).
+- **AES-128 and AES-CMAC** are written in the project (`firmware/can_ids_fw/Core/Src/aes_cmac.c`),
+  checked on the PC against the FIPS 197 and RFC 4493 test vectors and against Python's
+  `cryptography` on 3,000 random inputs (identical, `firmware/host_test/cmac_test.c`).
+  Verifying one frame costs **~40 µs** on the chip.
+- **Verdicts** (ALERT on the protected ID): `auth_mac` the data was replaced in transit (MAC
+  invalid); `auth_replay` a recorded frame resent (freshness not newer); `auth_missing` an
+  injected protected frame with no valid authenticator.
+
+### The companion-frame problem, and how it is handled
+The USB-CAN adapter does not deliver the low-priority authenticator frames (`0x786` / `0x7B0`)
+reliably under load: measured, about **6% are dropped or delayed** past a one-second buffer.
+A dropped authenticator makes its data frame fail, and a dropped data frame makes its
+authenticator fail, so isolated failures occur on normal traffic (~13/s).
+
+- **Matching is by content, not position:** the receiver keeps a ring of recent data frames
+  and of recent authenticators per ID and pairs them by recomputing the CMAC, so ordinary
+  reordering does not cause a failure.
+- **Smoothing by consecutive run:** an ALERT is raised only after **16 consecutive** failed
+  checks on one ID with no valid frame between (`ids_secoc.c`, `SECOC_RUN`). A real
+  masquerade or replay forges *every* protected frame, so the run reaches 16 in ~160 ms; a
+  frame lost on the bus fails once between valid frames and never builds a run. This is the
+  same idea as the detector's 5-of-10 smoothing.
+- **Result:** 0 false SecOC alerts in 90 s of normal driving (1,179 isolated unverified
+  frames, none reaching a run of 16), while the masquerade is caught in 0.33 s.
+
+### Live results (firmware v13, `python pc/demo_server.py` + `python pc/attack.py`)
+| Attack | Before SecOC | With SecOC |
+|---|---|---|
+| **speed_spoof** (masquerade, forged 180 km/h, normal timing) | **missed** | **ALERT 0.33 s** (`auth_mac` on 0x386) |
+| max_speedometer, dos, fuzzing, steering_angle_replay | detected (rules/AI) | still detected, 0.08–1.6 s |
+| normal driving, 90 s | 0 false | **0 false** |
+
+- **Honest scope:** this demonstrates SecOC on two IDs on a bus where the PC plays the sender;
+  a real deployment needs every sending ECU to authenticate. It protects **authenticity**, not
+  confidentiality (the data is still readable), and does not stop a *compromised sender that
+  holds the key* (an insider) — only forgery and replay by someone without the key. It does
+  not cover denial of service.
