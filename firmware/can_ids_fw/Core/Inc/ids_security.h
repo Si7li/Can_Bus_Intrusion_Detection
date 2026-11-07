@@ -38,6 +38,7 @@ const char *sec_reset_cause(void);
 void sec_report_boot(void);
 void sec_watchdog_start(uint32_t ms);
 void sec_poll_commands(void);
+void sec_uart_rx_start(void);       /* serial receive by interrupt (call after HAL_UART_Init) */
 
 void sec_write(const char *p, int len);   /* printf output: signs every JSON line (HMAC-SHA256) */
 uint32_t sec_last_hmac_cycles(void);

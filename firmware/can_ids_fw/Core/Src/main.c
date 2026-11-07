@@ -335,6 +335,7 @@ int main(void)
   /* Faster serial port than CubeMX's 115200: alerts must not slow down reception. */
   huart2.Init.BaudRate = UART_BAUD;
   if (HAL_UART_Init(&huart2) != HAL_OK) Error_Handler();
+  sec_uart_rx_start();                /* commands are received by interrupt: no byte lost */
   printf("\r\nCAN IDS firmware booted, core clock %lu Hz, APB1 %lu Hz\r\n",
          HAL_RCC_GetHCLKFreq(), HAL_RCC_GetPCLK1Freq());
   sec_tamper_init();                  /* tamper switch (blue button) guards the device secret */

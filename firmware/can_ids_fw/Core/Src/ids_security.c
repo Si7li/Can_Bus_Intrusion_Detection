@@ -118,32 +118,58 @@ static void entropy_dump(uint32_t periods)
 }
 #endif
 
-/* Commands over the serial port (polled, one byte per loop pass at most, so a flood of
-   characters cannot block the loop):
+/* Serial receive: the USART2 RXNE interrupt copies every incoming byte into a ring buffer, so
+   nothing is lost while the main loop is busy (the USART holds only one byte, which at 921,600
+   baud is overwritten after ~11 us: polling it from the main loop dropped bytes of long
+   commands such as the 129-character provisioning line). */
+#define RX_RING 256u                          /* power of two */
+static volatile uint8_t rx_ring[RX_RING];
+static volatile uint32_t rx_wr, rx_rd, rx_dropped;
+
+void USART2_IRQHandler(void)
+{
+  uint32_t sr = USART2->SR;
+  if (sr & (USART_SR_RXNE | USART_SR_ORE)) {   /* reading DR clears RXNE and an overrun */
+    uint8_t c = (uint8_t)USART2->DR;
+    if (rx_wr - rx_rd < RX_RING) rx_ring[rx_wr++ % RX_RING] = c;
+    else rx_dropped++;
+  }
+}
+
+void sec_uart_rx_start(void)                  /* after the last HAL_UART_Init() */
+{
+  NVIC_SetPriority(USART2_IRQn, 8);           /* below CAN reception */
+  NVIC_EnableIRQ(USART2_IRQn);
+  USART2->CR1 |= USART_CR1_RXNEIE;
+}
+
+/* Commands over the serial port (from the ring buffer; a bounded number of bytes per loop pass,
+   so a flood of characters cannot block the loop):
      Q<128 hex digits>\n ECDH provisioning with the PC's public key (only when no secret is present)
      H                   demo only: hang the main loop (watchdog demo)                    */
 void sec_poll_commands(void)
 {
   static char line[140];
   static uint32_t n;
-  if (!(USART2->SR & USART_SR_RXNE)) return;
-  char c = (char)USART2->DR;
+  for (uint32_t budget = 64; budget && rx_rd != rx_wr; budget--) {
+    char c = (char)rx_ring[rx_rd++ % RX_RING];
 #if SEC_DEMO_COMMANDS
-  if (c == 'H' && n == 0) {
-    printf("{\"type\":\"info\",\"msg\":\"demo: main loop hung on purpose, the watchdog should reset the chip\"}\r\n");
-    __disable_irq();
-    for (;;) { }                    /* no refresh: the IWDG resets the chip after ~250 ms */
+    if (c == 'H' && n == 0) {
+      printf("{\"type\":\"info\",\"msg\":\"demo: main loop hung on purpose, the watchdog should reset the chip\"}\r\n");
+      __disable_irq();
+      for (;;) { }                  /* no refresh: the IWDG resets the chip after ~250 ms */
+    }
+#endif
+    if (c == '\r' || c == '\n') {
+      if (n == 129 && line[0] == 'Q') sec_secret_provision_ecdh(line + 1);
+#if SEC_DEMO_COMMANDS
+      else if (n == 2 && line[0] == 'E' && (line[1] == '1' || line[1] == '2' || line[1] == '4' || line[1] == '8'))
+        entropy_dump((uint32_t)(line[1] - '0'));
+#endif
+      n = 0;
+    } else if (n < sizeof line) line[n++] = c;
+    else n = sizeof line;           /* too long: ignored until the next newline */
   }
-#endif
-  if (c == '\r' || c == '\n') {
-    if (n == 129 && line[0] == 'Q') sec_secret_provision_ecdh(line + 1);
-#if SEC_DEMO_COMMANDS
-    else if (n == 2 && line[0] == 'E' && (line[1] == '1' || line[1] == '2' || line[1] == '4' || line[1] == '8'))
-      entropy_dump((uint32_t)(line[1] - '0'));
-#endif
-    n = 0;
-  } else if (n < sizeof line) line[n++] = c;
-  else n = sizeof line;             /* too long: ignored until the next newline */
 }
 
 /* ------------------------------------------------------------------ tamper + device secret

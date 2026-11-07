@@ -726,6 +726,14 @@ authenticator fail, so isolated failures occur on normal traffic (~13/s).
   masquerade or replay forges *every* protected frame, so the run reaches 16 in ~160 ms; a
   frame lost on the bus fails once between valid frames and never builds a run. This is the
   same idea as the detector's 5-of-10 smoothing.
+- **Bug found afterwards: lost serial bytes.** With the SecOC firmware, provisioning stopped
+  answering. The board read the serial port by polling, one byte per main-loop pass, and the
+  USART holds a single byte (overwritten after ~11 µs at 921,600 baud). Short commands (`H`)
+  still got through, but the 129-character provisioning line lost bytes. Sent byte by byte
+  with 0.5 ms gaps, the same line was accepted, which confirmed the byte loss. Fix: the
+  USART2 receive interrupt now copies every byte into a 256-byte ring buffer, which the main
+  loop drains (firmware v14). The PC also paces the provisioning line, so older firmware
+  still works.
 - **Result:** 0 false SecOC alerts in 90 s of normal driving (1,179 isolated unverified
   frames, none reaching a run of 16), while the masquerade is caught in 0.33 s.
 
