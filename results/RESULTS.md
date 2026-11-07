@@ -434,3 +434,34 @@ piece (21.3 min of clean driving), 123 min in all. Command:
 - **For the demo:** use the single-attack recordings that ran clean live (max_speedometer,
   steering_angle_replay, parking_break, ems_replay_long, fuzzing_random_ids). Avoid
   multiple_attacks and reverse_speedometer_fuzzing.
+
+## 7. Device protection (step 3, in progress)
+
+The detector itself has to survive attacks on the device: someone hanging it, glitching
+its supply, reading its firmware out, or flashing a version without the detector.
+Code: `firmware/can_ids_fw/Core/Src/ids_security.c`; tests: `python pc/security_demo.py <test>`,
+log: `results/security_tests.txt`. At every boot the firmware prints one line with the reset
+cause and the protection settings it reads from the option bytes:
+
+```
+{"type":"boot","reset":"watchdog","rdp":"level0","bor":"level3_2.70V","wrp_sectors":[],"watchdog":"software","watchdog_ms":250,"demo_commands":true}
+```
+
+| ID | Protection | Test | Result |
+|---|---|---|---|
+| L2 | **Independent watchdog** (IWDG, 250 ms, its own oscillator, cannot be stopped once started) | `security_demo.py watchdog`: the PC sends `H`, the firmware hangs on purpose (interrupts off, endless loop) | **PASS**: restarted **251 ms** after the hang, reset cause reported `watchdog` |
+| L2b | Watchdog vs real load | DoS flood at 3,800 frames/s (`live_attacks.py dos_unknown_id`), MIRGU max_speedometer replay at ~2,000 frames/s | **PASS**: no watchdog reset, 0 frames lost |
+| P3 | **Brown-out reset level 3** (option byte BOR_LEV): the chip is held in reset below 2.70 V instead of running at a voltage where flash reads and code can go wrong (simple supply glitches) | option bytes read back by the firmware at boot | **set**: `bor: level3_2.70V` (not tested with a real supply dip) |
+
+- **Why 250 ms:** the IWDG runs on the internal LSI oscillator, which the datasheet only
+  guarantees between 17 and 47 kHz, so 250 ms nominal can be as short as ~170 ms. The longest
+  main-loop pass is a full 256-frame queue (256 × 63 µs = 16 ms) plus a few serial lines.
+- **The demo command is a backdoor by design:** anyone on the USB serial port can hang the
+  chip (and get it restarted). A production build sets `SEC_DEMO_COMMANDS 0`; the port then
+  accepts nothing.
+- A reset loses the detector's history (a few seconds to re-learn timing). `live_demo.py`
+  now shows any restart during a run and records it in the results (`nucleo_resets`).
+
+Still to do: tamper detection (P2), secure boot with an ECDSA signature (L1), write
+protection of the bootloader (L1c), read protection level 1 (P1, P1b). Level 2 is
+permanent (the board can never be reflashed or debugged again) and is not applied.

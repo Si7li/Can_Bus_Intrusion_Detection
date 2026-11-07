@@ -128,6 +128,9 @@ class Monitor(threading.Thread):
             self.last_status_print = now
             print(f"[{t:7.2f} s]         bus {ev['fps']} frames/s | detector CPU {ev['cpu_pct']}% | "
                   f"queue max {ev['queue_max']} | overflow {ev['overflow']} | CAN errors TEC {ev['tec']} REC {ev['rec']}")
+        elif kind == "boot":            # always shown: a reset in the middle of a run matters
+            print(f"[{t:7.2f} s] NUCLEO RESTARTED (reset cause: {ev['reset']}) | read protection {ev['rdp']}, "
+                  f"brown-out reset {ev['bor']}, write-protected sectors {ev['wrp_sectors'] or 'none'}")
         elif kind == "info" and self.verbose:
             print(f"[{t:7.2f} s]         nucleo: {ev['msg']}")
 
@@ -140,7 +143,8 @@ class Monitor(threading.Thread):
 # ------------------------------------------------------------------ replay
 def replay(df: pd.DataFrame, port: str) -> dict:
     """Send every frame at its recorded time. Returns the actual send time of each frame."""
-    dlc = df["dlc"].to_numpy() if "dlc" in df.columns else np.full(len(df), 8)
+    # frames without a length (ROAD, frames built by live_attacks.py) are sent with 8 bytes
+    dlc = df["dlc"].fillna(8).astype(int).to_numpy() if "dlc" in df.columns else np.full(len(df), 8)
     packets = [road_frame(int(i), bytes(row[:n])) for i, row, n in zip(df["id"], df[BYTES].to_numpy(np.uint8), dlc)]
     times = (df["t"] - df["t"].iloc[0]).to_numpy()
     sent = np.empty(len(times))
@@ -219,6 +223,7 @@ def summarize(name: str, df: pd.DataFrame, rp: dict, events: list) -> dict:
         "nucleo_overflow": (status[-1]["overflow"] - status[0]["overflow"]) if status else 0,   # counter since boot
         "can_errors_max": max((max(s["tec"], s["rec"]) for s in status), default=0),
         "replay_late_ms_p99": round(rp["late_ms_p99"], 2),
+        "nucleo_resets": [ev["reset"] for _, ev in events if ev.get("type") == "boot"],
     }
 
 
@@ -235,6 +240,8 @@ def print_summary(r: dict):
     print(f"  Nucleo: up to {r['nucleo_fps_max']} frames/s, detector CPU max {r['nucleo_cpu_pct_max']}%, "
           f"queue max {r['nucleo_queue_max']}, overflow {r['nucleo_overflow']}, CAN errors {r['can_errors_max']}")
     print(f"  replay timing: 99% of frames sent within {r['replay_late_ms_p99']} ms of their recorded time")
+    if r["nucleo_resets"]:
+        print(f"  WARNING: the Nucleo restarted during the run ({', '.join(r['nucleo_resets'])})")
 
 
 def run_one(name: str, full: bool, args, verbose: bool = True, max_minutes: float | None = None) -> dict:

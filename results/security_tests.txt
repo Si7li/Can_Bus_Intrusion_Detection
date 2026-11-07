@@ -1,0 +1,3 @@
+2026-11-07 11:43:15  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset off | write-protected sectors none | watchdog 250 ms | demo commands on
+2026-11-07 11:43:22  watchdog   PASS  hang -> restart in 251 ms (timeout 250 ms nominal), reset cause reported: watchdog
+2026-11-07 11:43:34  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset level3_2.70V | write-protected sectors none | watchdog 250 ms | demo commands on

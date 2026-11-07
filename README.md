@@ -170,3 +170,13 @@ python pc/live_demo.py --all-test                              # whole test spli
 python pc/live_demo.py --latency                               # transport delay of the USB links alone
 python pc/live_attacks.py --all                                # DoS floods + fuzzing on real IDs (not in ROAD), ~2 min
 ```
+
+### Device protection (step 3)
+
+```bash
+python pc/security_demo.py status      # restart the Nucleo: reset cause, RDP / BOR / WRP settings
+python pc/security_demo.py watchdog    # hang the main loop on purpose -> watchdog reset (~250 ms)
+STM32_Programmer_CLI -c port=SWD mode=UR -ob BOR_LEV=0    # brown-out reset level 3 (2.70 V); BOR_LEV=3 = off
+```
+
+Never set RDP to Level 2 (0xCC): it is permanent and the board can never be reflashed.

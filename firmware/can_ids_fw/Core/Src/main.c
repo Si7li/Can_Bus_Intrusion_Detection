@@ -25,6 +25,7 @@
 #include <string.h>
 #include "ids_detector.h"
 #include "ids_selftest_data.h"
+#include "ids_security.h"
 #ifndef IDS_DATASET_NAME            /* headers exported before the CAN-MIRGU version */
 #define IDS_DATASET_NAME "ROAD"
 #endif
@@ -281,6 +282,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+  sec_capture_reset_cause();           /* before anything else: why did we (re)start? */
 
   /* USER CODE END 1 */
 
@@ -310,6 +312,7 @@ int main(void)
   if (HAL_UART_Init(&huart2) != HAL_OK) Error_Handler();
   printf("\r\nCAN IDS firmware booted, core clock %lu Hz, APB1 %lu Hz\r\n",
          HAL_RCC_GetHCLKFreq(), HAL_RCC_GetPCLK1Freq());
+  sec_report_boot();                  /* reset cause + protection settings (RDP, BOR, WRP) */
   ids_selftest();                     /* before CAN starts: nothing arrives during the test */
 
   /* TIM2 = free-running 32-bit microsecond clock (timer clock = 2 x APB1 = 90 MHz). */
@@ -351,6 +354,10 @@ int main(void)
   /* Initialize USER push-button, will be used to trigger an interrupt each time it's pressed.*/
   BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
 
+  /* Watchdog last: from here on the main loop must come round every SEC_WATCHDOG_MS,
+     or the chip resets (and reports "reset":"watchdog" at the next boot). */
+  sec_watchdog_start(SEC_WATCHDOG_MS);
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -361,6 +368,8 @@ int main(void)
     /* USER CODE BEGIN 3 */
     static uint32_t last_tx = 0, last_status = 0;
     uint32_t now = HAL_GetTick();
+    sec_watchdog_kick();
+    sec_poll_commands();
 
 #if CAN_TEST_TX
     /* every 100 ms: send ID 0x123 = [counter (4 bytes, little endian), CA FE BA BE] */
