@@ -154,8 +154,8 @@ def pc_keypair():
 
 def send_pc_key(s, pc_pub: bytes, wait_s: float = 5.0) -> dict | None:
     """'Q' + the PC's public key; the chip answers within ~0.5 s (entropy + 2 P-256 operations)."""
-    s.write(b"Q" + pc_pub.hex().encode() + b"\n")
-    s.flush()
+    for byte in b"\nQ" + pc_pub.hex().encode() + b"\n":   # paced: the firmware polls one byte per
+        s.write(bytes([byte])); s.flush(); time.sleep(0.0005)   # loop pass and drops bytes sent at full speed
     lines, end = [], time.perf_counter() + wait_s
     while time.perf_counter() < end and not json_events(lines, "provision"):
         lines += read_lines(s, 0.1)
