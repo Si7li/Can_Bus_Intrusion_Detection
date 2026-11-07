@@ -1,3 +1,26 @@
 2026-11-07 11:43:15  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset off | write-protected sectors none | watchdog 250 ms | demo commands on
 2026-11-07 11:43:22  watchdog   PASS  hang -> restart in 251 ms (timeout 250 ms nominal), reset cause reported: watchdog
 2026-11-07 11:43:34  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset level3_2.70V | write-protected sectors none | watchdog 250 ms | demo commands on
+2026-11-07 11:48:46  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset level3_2.70V | write-protected sectors none | watchdog 250 ms | demo commands on | device secret erased
+2026-11-07 11:48:51  provision  PASS  secret written, fingerprint 1b2a8aac (matches the key sent); overwrite attempt refused
+2026-11-07 11:48:54  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset level3_2.70V | write-protected sectors none | watchdog 250 ms | demo commands on | device secret present (id 69691905)
+2026-11-07 11:49:01  watchdog   PASS  hang -> restart in 250 ms (timeout 250 ms nominal), reset cause reported: watchdog
+2026-11-07 11:51:11  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset level3_2.70V | write-protected sectors none | watchdog 250 ms | demo commands on | device secret present (id ecd65fd5)
+2026-11-07 11:51:15  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset level3_2.70V | write-protected sectors none | watchdog 250 ms | demo commands on | device secret present (id ecd65fd5)
+2026-11-07 11:51:18  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset level3_2.70V | write-protected sectors none | watchdog 250 ms | demo commands on | device secret present (id ecd65fd5)
+2026-11-07 11:51:25  watchdog   PASS  hang -> restart in 251 ms (timeout 250 ms nominal), reset cause reported: watchdog
+2026-11-07 11:51:28  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset level3_2.70V | write-protected sectors none | watchdog 250 ms | demo commands on | device secret present (id ecd65fd5)
+2026-11-07 11:53:33  tamper     PASS  button pressed -> secret erased in hardware (registers zero: True), status 'erased', after restart 'erased'
+2026-11-07 11:53:59  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset level3_2.70V | write-protected sectors none | watchdog 250 ms | demo commands on | device secret missing
+2026-11-07 11:54:04  provision  PASS  secret written, fingerprint 8ea51c95 (matches the key sent); overwrite attempt refused
+2026-11-07 11:54:36  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset level3_2.70V | write-protected sectors none | watchdog 250 ms | demo commands on | device secret present (id 8ea51c95)
+2026-11-07 12:01:42  signing    FAIL  no keys/device_secret.key: run 'provision' first (press the button first if the chip already has a secret the PC does not know)
+2026-11-07 12:01:54  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset level3_2.70V | write-protected sectors none | watchdog 250 ms | demo commands on | device secret missing [power was lost]
+2026-11-07 12:01:59  provision  PASS  secret written, fingerprint fe096ce0 (matches the key sent), PC copy in keys/device_secret.key; overwrite attempt refused
+2026-11-07 12:02:03  signing    PASS  6/6 lines verified; changed line forged, made-up alert forged, replayed line replayed, other key forged; HMAC 220 us per line on the chip
+2026-11-07 12:13:07  signing    FAIL  no line verified ({'unsigned'}): the chip's secret is not the one in keys/device_secret.key? press the button, then 'provision'
+2026-11-07 12:13:27  provision  PASS  chip made its key pair (4096 entropy samples in 131 ms, health tests passed: longest run 5, max low byte 96/512; total 244 ms); ECDH secret fingerprint chip 29f68eef vs PC 29f68eef: MATCH, PC copy in keys/device_secret.key; second provisioning refused
+2026-11-07 12:13:31  signing    PASS  6/6 lines verified; changed line forged, made-up alert forged, replayed line replayed, other key forged; HMAC 219 us per line on the chip
+2026-11-07 12:13:34  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset level3_2.70V | write-protected sectors none | watchdog 250 ms | demo commands on | device secret present (id 29f68eef)
+2026-11-07 12:14:03  keygen     PASS  invalid PC public key refused: True; 3 provisionings -> 3 different chip key pairs; 244-245 ms each; last secret kept, PC copy saved
+2026-11-07 12:14:07  signing    PASS  6/6 lines verified; changed line forged, made-up alert forged, replayed line replayed, other key forged; HMAC 219 us per line on the chip

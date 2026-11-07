@@ -4,3 +4,4 @@ pyserial>=3.5
 numpy
 pandas
 pyarrow
+cryptography>=42       # ECDH provisioning (security_demo.py), firmware signing

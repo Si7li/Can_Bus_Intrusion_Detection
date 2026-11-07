@@ -116,6 +116,7 @@ def run(name: str, args) -> dict:
     time.sleep(2.0)
     mon.close()
     r = summarize(name, df, rp, mon.events)
+    r["signed_lines"] = dict(mon.verifier.counts)
     print_summary(r)
     return r
 

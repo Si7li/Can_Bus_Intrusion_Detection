@@ -5,8 +5,9 @@
 #
 # Uses the GNU Tools for STM32 bundled with CubeIDE (the system arm-none-eabi-gcc
 # has no newlib). Set GCC_BIN to its tools/bin folder if it is not found.
-# The detector (ids_detector.c) is compiled with -O2 through a #pragma, so the
-# timings do not depend on this -O0 Debug build.
+# The detector (ids_detector.c) and sha256.c are compiled with -O2 through a #pragma, and
+# micro-ecc (Core/Src/uecc) with -O2 here, so the timings do not depend on this -O0 Debug build.
+# In STM32CubeIDE, add the same uECC_SUPPORTS_* defines to the project settings.
 #
 # Flash (CubeIDE's STM32_Programmer_CLI):
 #     STM32_Programmer_CLI -c port=SWD mode=UR reset=HWrst -w firmware/can_ids_fw/build/can_ids_fw.elf -v -rst
@@ -23,9 +24,13 @@ CFLAGS="$ARCH -std=gnu11 -O0 -g3 -Wall -ffunction-sections -fdata-sections --spe
  -DUSE_NUCLEO_64 -DUSE_HAL_DRIVER -DSTM32F446xx -DDEBUG \
  -ICore/Inc -IDrivers/STM32F4xx_HAL_Driver/Inc -IDrivers/STM32F4xx_HAL_Driver/Inc/Legacy \
  -IDrivers/BSP/STM32F4xx-Nucleo -IDrivers/CMSIS/Device/ST/STM32F4xx/Include -IDrivers/CMSIS/Include"
+# micro-ecc: P-256 only (the other curves are not compiled in)
+CFLAGS="$CFLAGS -DuECC_SUPPORTS_secp160r1=0 -DuECC_SUPPORTS_secp192r1=0 -DuECC_SUPPORTS_secp224r1=0 -DuECC_SUPPORTS_secp256k1=0"
 ok=1
 while IFS= read -r f; do
-  arm-none-eabi-gcc $CFLAGS -c "$f" -o "$B/$(basename "$f" .c).o" 2>>"$B/warn.txt" || ok=0
+  OPT=""
+  case "$f" in */uecc/*) OPT="-O2" ;; esac      # third-party crypto: optimized in Debug builds too
+  arm-none-eabi-gcc $CFLAGS $OPT -c "$f" -o "$B/$(basename "$f" .c).o" 2>>"$B/warn.txt" || ok=0
 done < <(find Core Drivers -name "*.c" -not -path "*/CMSIS/*")
 arm-none-eabi-gcc $ARCH -c Core/Startup/startup_stm32f446retx.s -o "$B/startup.o" || ok=0
 arm-none-eabi-gcc $ARCH --specs=nano.specs --specs=nosys.specs -TSTM32F446RETX_FLASH.ld -Wl,--gc-sections \

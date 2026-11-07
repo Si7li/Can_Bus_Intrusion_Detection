@@ -444,13 +444,18 @@ log: `results/security_tests.txt`. At every boot the firmware prints one line wi
 cause and the protection settings it reads from the option bytes:
 
 ```
-{"type":"boot","reset":"watchdog","rdp":"level0","bor":"level3_2.70V","wrp_sectors":[],"watchdog":"software","watchdog_ms":250,"demo_commands":true}
+{"type":"boot","reset":"watchdog","rdp":"level0","bor":"level3_2.70V","wrp_sectors":[],"watchdog":"software","watchdog_ms":250,"demo_commands":true,"secret":"present","secret_id":"fe096ce0","boot":3,"seq":0,"mac":"<32 hex digits>"}
 ```
 
 | ID | Protection | Test | Result |
 |---|---|---|---|
 | L2 | **Independent watchdog** (IWDG, 250 ms, its own oscillator, cannot be stopped once started) | `security_demo.py watchdog`: the PC sends `H`, the firmware hangs on purpose (interrupts off, endless loop) | **PASS**: restarted **251 ms** after the hang, reset cause reported `watchdog` |
 | L2b | Watchdog vs real load | DoS flood at 3,800 frames/s (`live_attacks.py dos_unknown_id`), MIRGU max_speedometer replay at ~2,000 frames/s | **PASS**: no watchdog reset, 0 frames lost |
+| P2 | **Tamper switch** on PC13 (RTC tamper input; the Nucleo's blue USER button plays the enclosure switch): erases the device secret in hardware | `security_demo.py tamper`, button pressed by hand | **PASS**: backup registers read back as zero, LD2 on, detector kept running, still `erased` after a restart |
+| P2b | **Device secret made on the chip**: ECDH P-256 with the provisioning PC; the chip's key pair comes from its own entropy source; only public keys cross the cable | `security_demo.py provision` | **PASS**: chip and PC derived the same secret (fingerprints match), 244 ms in all; a second provisioning is **refused**; an invalid PC public key is **refused**; 3 provisionings gave 3 different key pairs; the secret survived restarts, a watchdog reset and a reflash |
+| E1 | **On-chip entropy source** (no hardware RNG on the F446): LSI RC-oscillator jitter measured by TIM5 against the crystal clock, 4,096 samples → health tests → SHA-256 | `pc/entropy_check.py` (32,768 raw samples per setting) | **~2.8 bits of min-entropy per sample** (most-common-value: 2.88, predictor from the previous sample: 2.82); one sample every 32 µs; ~11,500 bits estimated per 256-bit seed |
+| N4 | **Signed serial link**: every JSON line carries `boot`, `seq` and an HMAC-SHA256 (128 bits) made with the device secret; the PC (`pc/signed_link.py`) checks it | `security_demo.py signing` | **PASS**: 6/6 real lines verified; one value changed → *forged*; made-up ALERT → *forged*; genuine line sent again → *replayed*; other key → *forged*. Live replay: 76/76 lines verified, detection unchanged. HMAC **220 µs** per line on the chip |
+| P2c | Power loss vs tamper | USB unplugged 5 s, then `status` | **PASS**: reported `missing` (power lost), not `erased` |
 | P3 | **Brown-out reset level 3** (option byte BOR_LEV): the chip is held in reset below 2.70 V instead of running at a voltage where flash reads and code can go wrong (simple supply glitches) | option bytes read back by the firmware at boot | **set**: `bor: level3_2.70V` (not tested with a real supply dip) |
 
 - **Why 250 ms:** the IWDG runs on the internal LSI oscillator, which the datasheet only
@@ -462,6 +467,92 @@ cause and the protection settings it reads from the option bytes:
 - A reset loses the detector's history (a few seconds to re-learn timing). `live_demo.py`
   now shows any restart during a run and records it in the results (`nucleo_resets`).
 
-Still to do: tamper detection (P2), secure boot with an ECDSA signature (L1), write
-protection of the bootloader (L1c), read protection level 1 (P1, P1b). Level 2 is
-permanent (the board can never be reflashed or debugged again) and is not applied.
+### Tamper and device secret: how it works, and what went wrong first
+- The key stands in for what a real ECU keeps in tamper-protected memory (SecOC or
+  diagnostic keys). The firmware never sends it out: it prints only a 32-bit fingerprint
+  (FNV-1a), so the PC can check that provisioning worked.
+- **The F446 has no hardware random generator** (only some F4 parts have one, such as the
+  F405/F407/F427/F429), so the chip harvests its own randomness:
+  - **Source:** the internal LSI RC oscillator (~31 kHz) drifts and jitters with thermal noise,
+    and the 90 MHz timer clock comes from an independent crystal. TIM5 can capture the LSI
+    directly (a hardware path meant for LSI calibration), so each sample is the length of one
+    LSI period in 90 MHz ticks: mean 2,886 ticks, standard deviation ~3 ticks.
+  - **Measurement** (`results/entropy_check.txt`, 32,768 samples per setting):
+    | LSI periods per sample | 1 | 2 | 4 | 8 |
+    |---|---:|---:|---:|---:|
+    | min-entropy per sample, most common value (bits) | 2.88 | 3.64 | 4.57 | 5.33 |
+    | min-entropy, guessing from the previous sample (bits) | 2.82 | 3.41 | 4.12 | 4.68 |
+    | correlation with the previous sample | +0.39 | +0.58 | +0.74 | +0.83 |
+
+    Consecutive samples are correlated (the oscillator also drifts slowly), so the plain
+    estimator could overestimate. The second estimator guesses each sample from the one before
+    it and still finds about the same entropy, so the correlation does not make samples
+    predictable. Setting chosen: 1 period per sample (least correlated, fastest).
+  - **Use:** 4,096 samples (0.13 s, ~11,500 bits by the estimate) are hashed into a 256-bit
+    seed. This is still enough if the true entropy were 40 times lower than measured. Two
+    health tests from NIST SP 800-90B (repetition count, adaptive proportion; cut-offs for
+    2.8 bits/sample at a 2⁻³⁰ false-alarm rate) refuse to make a key from a stuck or biased
+    source.
+  - **Honest limit:** this is two estimators on 32,768 samples, not the full SP 800-90B
+    assessment (ten estimators, 1,000,000 samples, restart tests), and it was measured on
+    one board at room temperature.
+- **ECDH provisioning (`"Q"` + the PC's public key):**
+  - The chip checks that the PC's P-256 public key is a valid curve point, then makes its own
+    key pair from the seed (micro-ecc, `Core/Src/uecc/`, BSD licence) and answers with its
+    public key.
+  - Both sides compute the same ECDH value and hash it with both public keys into the
+    128-bit secret. Someone watching the cable sees only the two public keys and cannot
+    compute it.
+  - The chip's private key, the ECDH value and the seed are wiped right away. The PC throws
+    its private key away and keeps only the derived secret, which it needs to check the HMACs.
+  - The secret is written only into an empty slot: an attacker on the serial port cannot
+    replace it. Only a tamper or a power loss empties the slot.
+  - **Limit:** the ECDH is not authenticated. It defeats a *listener*, but someone who can
+    replace the PC's public key with their own during provisioning gets the secret instead.
+    The provisioning station must be trusted, as on a production line.
+- A tamper event clears every backup register **in hardware**, within the filter time, even
+  if the firmware is hung. The interrupt only reports it (JSON `"type":"tamper"`, LED) and
+  marks the status line `"secret":"erased"`. Detection keeps running: losing the key must
+  not switch off the IDS.
+- **Erased vs missing:** at power-up the firmware writes a "blank" marker into a sixth backup
+  register. A tamper clears it too, so `erased` means "tampered since the last power-up"
+  and `missing` means "power was lost, not provisioned since".
+- **Limit of the Nucleo:** VBAT is wired to the 3.3 V supply, so unplugging USB also clears
+  the key, and nothing watches the switch while the board is off. A coin cell on VBAT
+  (after opening the board's VBAT-to-VDD solder bridge, see the Nucleo user manual UM1724)
+  would keep the backup domain, and the tamper detection,
+  running with the board unpowered.
+- **Finding during development:** the first version used *edge* detection without a filter.
+  Turning it on erased the key by itself at every reset, with the button untouched. The
+  registers held the key when the firmware started reading them and were zero a few
+  microseconds later (read over SWD). The fix is *level* detection with a filter: the input
+  must read low on 4 samples in a row (~32 ms with the LSI clock), with the pin precharged
+  before each sample. This also resists short glitches on the line. The key then survived
+  every restart.
+
+### Signed serial link: what it protects, and what not
+- **Threat:** the dashboard trusts what arrives on the USB serial link. Anyone with access to
+  that link (or to the PC's serial port) could inject a fake ALERT, change one, or hide a
+  real one by sending fake "all quiet" status lines. With the HMAC, a line that was changed
+  or made up fails the check (`forged`), and a genuine line recorded earlier and sent again
+  fails too (`replayed`: its `(boot, seq)` is not newer). `live_demo.py` ignores such lines
+  and counts them.
+- **The tamper link:** after a tamper the key is gone, so the Nucleo sends its lines with
+  `"mac": null`. The PC can see that the device can no longer prove what it says.
+- **How the line is signed:** the firmware rebuilds each `printf` line, then appends `"boot":B,"seq":N}`. It
+  signs that text (HMAC-SHA256 with the 16-byte key, first 128 bits kept) and inserts `,"mac":"…"` before
+  the closing brace. SHA-256 and HMAC are written in the project
+  (`Core/Src/sha256.c`), checked on the PC against the FIPS 180-4 and RFC 4231 test vectors
+  and against Python's `hashlib`/`hmac` on 3,000 random inputs (identical).
+- **Limits:**
+  - *Authenticity only:* the lines are still readable by anyone on the link (not encrypted).
+  - *Hiding by silence:* an attacker who cuts the link can still hide alerts by silence.
+    The dashboard should treat "no signed status line for 2 s" as an alarm.
+  - *Replay after a PC restart:* the PC remembers the newest `(boot, seq)` only while it
+    runs, so an old line replayed right after a PC restart is accepted once.
+  - *The PC's copy of the key:* it sits in `keys/device_secret.key` (git-ignored, mode 600),
+    so whoever controls the PC can sign lines too.
+
+Still to do: secure boot with an ECDSA signature (L1), write protection of the bootloader
+(L1c), read protection level 1 (P1, P1b). Level 2 is permanent (the board can never be
+reflashed or debugged again) and is not applied.

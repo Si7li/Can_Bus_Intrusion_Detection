@@ -17,3 +17,5 @@ bootloader/**/Release/
 .metadata/
 docs/
 firmware/**/build/
+# Device secret (PC copy) and signing keys: never in git
+keys/

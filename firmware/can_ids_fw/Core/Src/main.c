@@ -108,7 +108,7 @@ static void MX_CAN1_Init(void);
 int _write(int file, char *ptr, int len)
 {
   (void)file;
-  HAL_UART_Transmit(&huart2, (uint8_t *)ptr, (uint16_t)len, HAL_MAX_DELAY);
+  sec_write(ptr, len);                /* JSON lines get boot / seq / mac (signed with the device secret) */
   return len;
 }
 
@@ -312,6 +312,7 @@ int main(void)
   if (HAL_UART_Init(&huart2) != HAL_OK) Error_Handler();
   printf("\r\nCAN IDS firmware booted, core clock %lu Hz, APB1 %lu Hz\r\n",
          HAL_RCC_GetHCLKFreq(), HAL_RCC_GetPCLK1Freq());
+  sec_tamper_init();                  /* tamper switch (blue button) guards the device secret */
   sec_report_boot();                  /* reset cause + protection settings (RDP, BOR, WRP) */
   ids_selftest();                     /* before CAN starts: nothing arrives during the test */
 
@@ -370,6 +371,7 @@ int main(void)
     uint32_t now = HAL_GetTick();
     sec_watchdog_kick();
     sec_poll_commands();
+    sec_tamper_poll();
 
 #if CAN_TEST_TX
     /* every 100 ms: send ID 0x123 = [counter (4 bytes, little endian), CA FE BA BE] */
@@ -413,9 +415,10 @@ int main(void)
       uint32_t esr = hcan1.Instance->ESR;
       uint32_t cpu10 = (uint32_t)((uint64_t)st_busy_cyc * 1000u / ((uint64_t)HAL_RCC_GetHCLKFreq() * ms / 1000u));
       printf("{\"type\":\"status\",\"t_ms\":%lu,\"fps\":%lu,\"cpu_pct\":%lu.%lu,\"queue_max\":%lu,\"overflow\":%lu,"
-             "\"alert_frames\":%lu,\"warning_frames\":%lu,\"incidents\":%lu,\"tec\":%lu,\"rec\":%lu%s}\r\n",
+             "\"alert_frames\":%lu,\"warning_frames\":%lu,\"incidents\":%lu,\"tec\":%lu,\"rec\":%lu,\"secret\":\"%s\",\"mac_us\":%lu%s}\r\n",
              us_now() / 1000u, st_frames * 1000u / ms, cpu10 / 10u, cpu10 % 10u, st_qmax, rx_overflow,
              st_alert, st_warn, total_incidents, (esr >> 16) & 0xFF, (esr >> 24) & 0xFF,
+             sec_secret_state(), sec_last_hmac_cycles() / (HAL_RCC_GetHCLKFreq() / 1000000u),
              (esr & CAN_ESR_BOFF) ? ",\"bus_off\":true" : "");
       st_frames = st_alert = st_warn = st_busy_cyc = st_qmax = 0;
     }

@@ -176,7 +176,15 @@ python pc/live_attacks.py --all                                # DoS floods + fu
 ```bash
 python pc/security_demo.py status      # restart the Nucleo: reset cause, RDP / BOR / WRP settings
 python pc/security_demo.py watchdog    # hang the main loop on purpose -> watchdog reset (~250 ms)
+python pc/security_demo.py provision   # ECDH: the chip makes its own secret (refused if one is present)
+python pc/entropy_check.py             # measure the on-chip entropy source (raw samples -> min-entropy)
+python pc/security_demo.py tamper      # press the blue button = enclosure opened -> secret erased
+python pc/security_demo.py signing     # every JSON line is HMAC-signed: forged / replayed lines rejected
 STM32_Programmer_CLI -c port=SWD mode=UR -ob BOR_LEV=0    # brown-out reset level 3 (2.70 V); BOR_LEV=3 = off
 ```
+
+`provision` needs `uv pip install -r pc/requirements.txt` (the `cryptography` package). It keeps the
+PC's copy of the derived device secret in `keys/device_secret.key` (git-ignored);
+`live_demo.py` uses it to check every line from the Nucleo.
 
 Never set RDP to Level 2 (0xCC): it is permanent and the board can never be reflashed.

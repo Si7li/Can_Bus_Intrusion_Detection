@@ -2,6 +2,13 @@
    Register-level (RM0390 reference manual), so no extra HAL module is needed. */
 #include "ids_security.h"
 #include <stdio.h>
+#include <string.h>
+#include "stm32f4xx_hal.h"
+#include "sha256.h"
+#include "ids_entropy.h"
+#include "uecc/uECC.h"
+
+extern UART_HandleTypeDef huart2;
 
 static const char *reset_cause = "unknown";
 
@@ -42,9 +49,9 @@ void sec_report_boot(void)
     if (!pcrop && !(nwrp & (1u << s))) p += sprintf(p, p == wrp + 1 ? "%d" : ",%d", s);
   *p++ = ']'; *p = 0;
   printf("{\"type\":\"boot\",\"reset\":\"%s\",\"rdp\":\"%s\",\"bor\":\"%s\",\"wrp_sectors\":%s,"
-         "\"watchdog\":\"%s\",\"watchdog_ms\":%lu,\"demo_commands\":%s}\r\n",
+         "\"watchdog\":\"%s\",\"watchdog_ms\":%lu,\"demo_commands\":%s,%s}\r\n",
          reset_cause, rdp_s, bor_s[(opt >> 2) & 3u], wrp, (opt & FLASH_OPTCR_WDG_SW) ? "software" : "hardware",
-         (unsigned long)SEC_WATCHDOG_MS, SEC_DEMO_COMMANDS ? "true" : "false");
+         (unsigned long)SEC_WATCHDOG_MS, SEC_DEMO_COMMANDS ? "true" : "false", sec_secret_json());
 }
 
 /* IWDG: LSI (~32 kHz) / 32 = ~1 kHz counter, reload = timeout in ms (max 4095).
@@ -62,19 +69,345 @@ void sec_watchdog_start(uint32_t ms)
   IWDG->KR = 0xAAAAu;                                /* reload the counter now */
 }
 
-/* Demo commands over the serial port (polled, so a flood of characters cannot block
-   the loop): one byte per loop pass at most. */
+#if SEC_DEMO_COMMANDS
+/* "E1" / "E2" / "E4" / "E8": dump 32,768 raw entropy samples (LSI periods per sample = digit)
+   for the measurement on the PC (pc/entropy_check.py). 64 samples per line, 4 hex digits each.
+   The detector is paused meanwhile (~3 s). */
+static void entropy_dump(uint32_t periods)
+{
+  static const char hx[] = "0123456789abcdef";
+  char d[64 * 4 + 1];
+  entropy_start(periods);
+  for (uint32_t line = 0; line < 512u; line++) {
+    (void)entropy_sample();              /* the gap while printing spans several periods: drop it */
+    for (uint32_t k = 0; k < 64u; k++) {
+      uint32_t v = entropy_sample();
+      if (v > 0xFFFFu) v = 0xFFFFu;
+      d[4 * k] = hx[(v >> 12) & 15]; d[4 * k + 1] = hx[(v >> 8) & 15];
+      d[4 * k + 2] = hx[(v >> 4) & 15]; d[4 * k + 3] = hx[v & 15];
+    }
+    d[256] = 0;
+    sec_watchdog_kick();
+    printf("{\"type\":\"entropy_raw\",\"periods\":%lu,\"i\":%lu,\"d\":\"%s\"}\r\n",
+           (unsigned long)periods, (unsigned long)line, d);
+  }
+  entropy_stop();
+  printf("{\"type\":\"entropy_done\",\"periods\":%lu,\"samples\":32768}\r\n", (unsigned long)periods);
+}
+#endif
+
+/* Commands over the serial port (polled, one byte per loop pass at most, so a flood of
+   characters cannot block the loop):
+     Q<128 hex digits>\n ECDH provisioning with the PC's public key (only when no secret is present)
+     H                   demo only: hang the main loop (watchdog demo)                    */
 void sec_poll_commands(void)
 {
-#if SEC_DEMO_COMMANDS
+  static char line[140];
+  static uint32_t n;
   if (!(USART2->SR & USART_SR_RXNE)) return;
   char c = (char)USART2->DR;
-  if (c == 'H') {
+#if SEC_DEMO_COMMANDS
+  if (c == 'H' && n == 0) {
     printf("{\"type\":\"info\",\"msg\":\"demo: main loop hung on purpose, the watchdog should reset the chip\"}\r\n");
     __disable_irq();
     for (;;) { }                    /* no refresh: the IWDG resets the chip after ~250 ms */
   }
-#else
-  if (USART2->SR & USART_SR_RXNE) (void)USART2->DR;   /* drop it */
 #endif
+  if (c == '\r' || c == '\n') {
+    if (n == 129 && line[0] == 'Q') sec_secret_provision_ecdh(line + 1);
+#if SEC_DEMO_COMMANDS
+    else if (n == 2 && line[0] == 'E' && (line[1] == '1' || line[1] == '2' || line[1] == '4' || line[1] == '8'))
+      entropy_dump((uint32_t)(line[1] - '0'));
+#endif
+    n = 0;
+  } else if (n < sizeof line) line[n++] = c;
+  else n = sizeof line;             /* too long: ignored until the next newline */
 }
+
+/* ------------------------------------------------------------------ tamper + device secret
+   The secret is a 128-bit key kept in RTC backup registers BKP1-BKP4 (BKP0 = marker,
+   BKP5 = "blank since power-up" marker). It stands in for the keys a real ECU keeps there
+   (SecOC / diagnostic keys). The chip creates it itself (ECDH with the provisioning PC,
+   from its own entropy source, see sec_secret_provision_ecdh), only into an empty slot, and
+   never sends it out: only a 32-bit fingerprint is printed.
+   A tamper event erases all backup registers in hardware, immediately, even if the core is
+   stuck. With a coin cell on VBAT this also works with the board unpowered; on the Nucleo,
+   VBAT is tied to VDD, so unplugging USB also erases them (the next boot reports
+   "missing" with power_lost, not "erased"). */
+#define SECRET_MARK 0x5EC2E7A1u
+#define BLANK_MARK  0xB1A4C000u   /* BKP5: power was lost, slot empty, waiting for a key */
+/* BKP6: boot counter since provisioning (for signed lines) */
+#define BKP(n) (*(&RTC->BKP0R + (n)))
+
+typedef enum { SECRET_PRESENT, SECRET_MISSING, SECRET_ERASED } secret_state_t;
+static secret_state_t secret_state;
+static int power_lost;
+static volatile int tamper_pending;
+static int tamper_armed;
+static uint32_t release_tick;
+
+static uint32_t secret_id(void)        /* FNV-1a over the 16 key bytes: a fingerprint, not the key */
+{
+  uint32_t h = 2166136261u;
+  for (int w = 1; w <= 4; w++)
+    for (int b = 0; b < 4; b++) { h ^= (BKP(w) >> (8 * b)) & 0xFFu; h *= 16777619u; }
+  return h;
+}
+
+/* Level detection with a digital filter, not edge detection: the input must read low on
+   4 consecutive samples (TAMPFLT = 10) taken at RTCCLK / 256 (LSI ~32 kHz -> one sample every
+   ~8 ms, so a press is confirmed after ~32 ms). The internal pull-up precharges the pin before
+   each sample. Edge mode without a filter was tried first: enabling it erased the backup
+   registers by itself, with the button up (measured, see RESULTS.md section 7).
+   Configuration first, TAMP1E in a second write. */
+#define TAMPER_CFG ((2u << RTC_TAFCR_TAMPFLT_Pos)   /* 4 consecutive low samples */ \
+                  | (7u << RTC_TAFCR_TAMPFREQ_Pos)  /* RTCCLK / 256 */              \
+                  | (1u << RTC_TAFCR_TAMPPRCH_Pos)  /* precharge 2 RTCCLK cycles */  \
+                  | RTC_TAFCR_TAMPIE)               /* TAMP1TRG = 0: low level triggers */
+static void tamper_arm(void)
+{
+  RTC->TAFCR = TAMPER_CFG;                   /* TAMP1E off */
+  RTC->ISR &= ~RTC_ISR_TAMP1F;
+  EXTI->PR = EXTI_PR_PR21;
+  RTC->TAFCR = TAMPER_CFG | RTC_TAFCR_TAMP1E;
+  tamper_armed = 1;
+}
+
+void sec_tamper_init(void)
+{
+  RCC->APB1ENR |= RCC_APB1ENR_PWREN;
+  (void)RCC->APB1ENR;
+  PWR->CR |= PWR_CR_DBP;                     /* allow writes to the backup domain */
+  if (!(RCC->BDCR & RCC_BDCR_RTCEN)) {        /* backup domain was reset: power was lost */
+    power_lost = 1;
+    RCC->CSR |= RCC_CSR_LSION;
+    while (!(RCC->CSR & RCC_CSR_LSIRDY)) { }
+    if (!(RCC->BDCR & RCC_BDCR_RTCSEL)) RCC->BDCR |= 2u << RCC_BDCR_RTCSEL_Pos;   /* RTC clock = LSI */
+    RCC->BDCR |= RCC_BDCR_RTCEN;
+  }
+  /* A tamper erases every backup register, BKP5 included, so "erased" can only mean a tamper
+     (since the last power-up), and an empty slot after a power loss stays "missing" across resets. */
+  if (power_lost) BKP(5) = BLANK_MARK;
+  if (BKP(0) == SECRET_MARK) { secret_state = SECRET_PRESENT; BKP(6) = BKP(6) + 1; }
+  else if (BKP(5) == BLANK_MARK) secret_state = SECRET_MISSING;   /* not provisioned since power-up */
+  else secret_state = SECRET_ERASED;
+
+  EXTI->IMR |= EXTI_IMR_MR21;                /* RTC tamper/timestamp = EXTI line 21, rising */
+  EXTI->RTSR |= EXTI_RTSR_TR21;
+  NVIC_SetPriority(TAMP_STAMP_IRQn, 15);     /* lowest: never delays CAN reception */
+  NVIC_EnableIRQ(TAMP_STAMP_IRQn);
+  if (GPIOC->IDR & GPIO_IDR_ID13) tamper_arm();   /* only arm with the switch closed (button up) */
+  else release_tick = HAL_GetTick();
+}
+
+/* The backup registers are already erased by the hardware when this runs. */
+void TAMP_STAMP_IRQHandler(void)
+{
+  if (RTC->ISR & RTC_ISR_TAMP1F) {
+    RTC->TAFCR &= ~RTC_TAFCR_TAMP1E;
+    RTC->ISR &= ~RTC_ISR_TAMP1F;
+    tamper_armed = 0;
+    tamper_pending = 1;
+  }
+  EXTI->PR = EXTI_PR_PR21;
+}
+
+void sec_tamper_poll(void)
+{
+  if (tamper_pending) {
+    tamper_pending = 0;
+    secret_state = SECRET_ERASED;
+    int zero = BKP(0) == 0 && BKP(1) == 0 && BKP(2) == 0 && BKP(3) == 0 && BKP(4) == 0 && BKP(5) == 0;
+    GPIOA->BSRR = GPIO_BSRR_BS5;             /* LD2 on: stays on until the next reset */
+    printf("{\"type\":\"tamper\",\"t_ms\":%lu,\"msg\":\"enclosure opened: device secret erased\","
+           "\"backup_registers_zero\":%s}\r\n", HAL_GetTick(), zero ? "true" : "false");
+    release_tick = HAL_GetTick();
+  }
+  /* re-arm once the button has been up for 50 ms (arming while pressed would fire again) */
+  if (!tamper_armed) {
+    if (!(GPIOC->IDR & GPIO_IDR_ID13)) release_tick = HAL_GetTick();
+    else if (HAL_GetTick() - release_tick >= 50u) tamper_arm();
+  }
+}
+
+int sec_secret_ok(void) { return secret_state == SECRET_PRESENT; }
+const char *sec_secret_state(void)
+{
+  return secret_state == SECRET_PRESENT ? "present" : secret_state == SECRET_ERASED ? "erased" : "missing";
+}
+
+const char *sec_secret_json(void)
+{
+  static char buf[96];
+  if (secret_state == SECRET_PRESENT)
+    snprintf(buf, sizeof buf, "\"secret\":\"present\",\"secret_id\":\"%08lx\"", (unsigned long)secret_id());
+  else
+    snprintf(buf, sizeof buf, "\"secret\":\"%s\",\"secret_id\":null%s",
+             secret_state == SECRET_ERASED ? "erased" : "missing",
+             secret_state == SECRET_MISSING ? ",\"power_lost\":true" : "");   /* BKP5 marker = power was lost */
+  return buf;
+}
+
+static int hexval(char c)
+{
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  return -1;
+}
+
+/* ECDH provisioning: "Q" + the PC's P-256 public key (128 hex digits = X || Y) + newline.
+   1. the chip checks the PC's key is a valid curve point
+   2. 4096 entropy samples (LSI jitter) -> health tests -> SHA-256 -> 256-bit seed
+   3. a fresh P-256 key pair from that seed; the private key never leaves the chip
+   4. shared = ECDH(chip private key, PC public key); the PC computes the same value with its
+      private key and the chip's public key. Only the two public keys cross the cable.
+   5. device secret = first 16 bytes of SHA-256("can-ids hmac key v1" || shared || chip pub || PC pub)
+   The chip private key, the shared value and the seed are wiped. Refused while a secret is
+   present: the slot is written once, then only a tamper (or power loss) clears it.
+   Unauthenticated ECDH: it defeats someone *listening* on the cable during provisioning, not
+   someone who can replace the PC's key with their own (the station must be trusted). */
+static uint8_t drbg_seed[32];
+static uint32_t drbg_ctr;
+
+static int drbg_rng(uint8_t *dest, unsigned size)     /* SHA-256(seed || counter) blocks */
+{
+  while (size) {
+    uint8_t blk[36], out[32];
+    memcpy(blk, drbg_seed, 32);
+    memcpy(blk + 32, &drbg_ctr, 4);
+    drbg_ctr++;
+    sha256(blk, sizeof blk, out);
+    unsigned k = size < 32u ? size : 32u;
+    memcpy(dest, out, k);
+    dest += k; size -= k;
+    memset(out, 0, sizeof out);
+  }
+  return 1;
+}
+
+static void hex_out(const uint8_t *d, uint32_t n, char *out)
+{
+  static const char hx[] = "0123456789abcdef";
+  for (uint32_t i = 0; i < n; i++) { out[2 * i] = hx[d[i] >> 4]; out[2 * i + 1] = hx[d[i] & 15]; }
+  out[2 * n] = 0;
+}
+
+static void provision_refused(const char *why)
+{
+  printf("{\"type\":\"provision\",\"ok\":false,\"msg\":\"%s\"}\r\n", why);
+}
+
+void sec_secret_provision_ecdh(const char *hex128)
+{
+  const struct uECC_Curve_t *curve = uECC_secp256r1();
+  uint8_t pc_pub[64], dev_pub[64], dev_priv[32], shared[32], k[32];
+  for (int i = 0; i < 128; i++) {
+    int v = hexval(hex128[i]);
+    if (v < 0) { provision_refused("bad key format"); return; }
+    pc_pub[i / 2] = (uint8_t)((pc_pub[i / 2] << 4) | v);
+  }
+  if (secret_state == SECRET_PRESENT) { provision_refused("a secret is already present: refused"); return; }
+  if (!uECC_valid_public_key(pc_pub, curve)) { provision_refused("the PC public key is not a valid P-256 point"); return; }
+
+  sec_watchdog_start(2000u);                 /* key generation blocks for a while: longer timeout */
+  uint32_t t0 = HAL_GetTick();
+  entropy_stats_t st;
+  if (!entropy_seed(drbg_seed, &st)) {
+    sec_watchdog_start(SEC_WATCHDOG_MS);
+    printf("{\"type\":\"provision\",\"ok\":false,\"msg\":\"entropy source failed its health test\","
+           "\"max_repeat\":%lu,\"max_same_low_byte\":%lu}\r\n", st.max_repeat, st.max_same_low_byte);
+    return;
+  }
+  uint32_t t_entropy = HAL_GetTick() - t0;
+  drbg_ctr = 0;
+  uECC_set_rng(drbg_rng);
+  int ok = uECC_make_key(dev_pub, dev_priv, curve) && uECC_shared_secret(pc_pub, dev_priv, shared, curve);
+  uint32_t t_total = HAL_GetTick() - t0;
+  sec_watchdog_start(SEC_WATCHDOG_MS);
+  if (ok) {
+    sha256_ctx c;
+    sha256_init(&c);
+    sha256_update(&c, "can-ids hmac key v1", 19);
+    sha256_update(&c, shared, 32);
+    sha256_update(&c, dev_pub, 64);
+    sha256_update(&c, pc_pub, 64);
+    sha256_final(&c, k);
+    for (int w = 0; w < 4; w++)
+      BKP(w + 1) = (uint32_t)k[4 * w] << 24 | (uint32_t)k[4 * w + 1] << 16 | (uint32_t)k[4 * w + 2] << 8 | k[4 * w + 3];
+    BKP(0) = SECRET_MARK;
+    BKP(5) = 0;
+    BKP(6) = 1;                               /* first boot of this key */
+    secret_state = SECRET_PRESENT;
+  }
+  memset(dev_priv, 0, sizeof dev_priv); memset(shared, 0, sizeof shared); memset(k, 0, sizeof k);
+  memset(drbg_seed, 0, sizeof drbg_seed);
+  if (!ok) { provision_refused("key generation failed"); return; }
+  char pub_hex[129];
+  hex_out(dev_pub, 64, pub_hex);
+  printf("{\"type\":\"provision\",\"ok\":true,\"method\":\"ecdh-p256\",\"device_pub\":\"%s\",\"secret_id\":\"%08lx\","
+         "\"entropy_samples\":%lu,\"max_repeat\":%lu,\"max_same_low_byte\":%lu,\"entropy_ms\":%lu,\"total_ms\":%lu}\r\n",
+         pub_hex, (unsigned long)secret_id(), st.samples, st.max_repeat, st.max_same_low_byte, t_entropy, t_total);
+}
+
+/* ------------------------------------------------------------------ signed serial lines
+   Every JSON line the Nucleo sends is signed with the device secret, so the PC can tell a
+   real alert from one typed into the USB link (or a modified one). printf() output is put
+   back together line by line here (some lines come from several printf calls); a complete
+   JSON object {...} gets three more fields before it is sent:
+       "boot":B   boot counter since provisioning (backup register BKP6)
+       "seq":N    line counter since this boot
+       "mac":"<32 hex>"  HMAC-SHA256 with the device secret, first 128 bits, computed over the
+                  line up to and including "seq":N}  (without the mac field), or null when
+                  the secret is missing or erased (the line can then not be trusted).
+   (boot, seq) only goes up, so the PC rejects a genuine line replayed later.
+   Lines that are not JSON (boot banner, self-test text) are sent unsigned, as before. */
+static char line_buf[1100];
+static uint32_t line_n, seq_no;
+static uint32_t hmac_cycles;
+
+static void uart_send(const char *p, uint32_t n)
+{
+  HAL_UART_Transmit(&huart2, (uint8_t *)p, (uint16_t)n, HAL_MAX_DELAY);
+}
+
+static void send_line(void)
+{
+  static const char hx[] = "0123456789abcdef";
+  char *b = line_buf;
+  uint32_t n = line_n;
+  line_n = 0;
+  if (n >= 3 && b[0] == '{' && b[n - 1] == '\n' && b[n - 2] == '\r' && b[n - 3] == '}'
+      && n + 96 < sizeof line_buf) {
+    n -= 3;                                                   /* drop "}\r\n" */
+    n += (uint32_t)sprintf(b + n, ",\"boot\":%lu,\"seq\":%lu}", (unsigned long)BKP(6), (unsigned long)seq_no++);
+    if (BKP(0) == SECRET_MARK) {                              /* read the key now: a tamper may have just erased it */
+      uint8_t key[16], mac[32];
+      for (int i = 0; i < 16; i++) key[i] = (uint8_t)(BKP(1 + i / 4) >> (24 - 8 * (i % 4)));
+      uint32_t t0 = DWT->CYCCNT;
+      hmac_sha256(key, sizeof key, b, n, mac);
+      hmac_cycles = DWT->CYCCNT - t0;
+      memset(key, 0, sizeof key);
+      n -= 1;                                                 /* drop '}' */
+      memcpy(b + n, ",\"mac\":\"", 8); n += 8;
+      for (int i = 0; i < 16; i++) { b[n++] = hx[mac[i] >> 4]; b[n++] = hx[mac[i] & 15]; }
+      memcpy(b + n, "\"}\r\n", 4); n += 4;
+    } else {
+      n -= 1;
+      memcpy(b + n, ",\"mac\":null}\r\n", 14); n += 14;
+    }
+  }
+  uart_send(b, n);
+}
+
+/* called by _write() (printf) */
+void sec_write(const char *p, int len)
+{
+  for (int i = 0; i < len; i++) {
+    if (line_n >= sizeof line_buf - 100) { uart_send(line_buf, line_n); line_n = 0; }   /* too long: unsigned */
+    line_buf[line_n++] = p[i];
+    if (p[i] == '\n') send_line();
+  }
+}
+
+uint32_t sec_last_hmac_cycles(void) { return hmac_cycles; }

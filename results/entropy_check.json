@@ -1,0 +1,78 @@
+[
+  {
+    "periods_per_sample": 1,
+    "samples": 32768,
+    "mean_ticks": 2886.0,
+    "lsi_khz": 31.19,
+    "std_ticks": 3.07,
+    "distinct_values": 25,
+    "lag1_correlation": 0.389,
+    "min_entropy_bits": {
+      "full_value": 2.88,
+      "low_8_bits": 2.88,
+      "low_4_bits": 2.88,
+      "first_difference": 3.04,
+      "predictor_from_previous": 2.82
+    },
+    "longest_run_identical": 6,
+    "max_same_low_byte_per_512": 98,
+    "samples_per_second": 31185.0
+  },
+  {
+    "periods_per_sample": 2,
+    "samples": 32768,
+    "mean_ticks": 5777.9,
+    "lsi_khz": 31.15,
+    "std_ticks": 5.33,
+    "distinct_values": 46,
+    "lag1_correlation": 0.58,
+    "min_entropy_bits": {
+      "full_value": 3.64,
+      "low_8_bits": 3.64,
+      "low_4_bits": 3.59,
+      "first_difference": 3.5,
+      "predictor_from_previous": 3.41
+    },
+    "longest_run_identical": 5,
+    "max_same_low_byte_per_512": 66,
+    "samples_per_second": 15577.0
+  },
+  {
+    "periods_per_sample": 4,
+    "samples": 32768,
+    "mean_ticks": 11557.4,
+    "lsi_khz": 31.15,
+    "std_ticks": 10.01,
+    "distinct_values": 76,
+    "lag1_correlation": 0.74,
+    "min_entropy_bits": {
+      "full_value": 4.57,
+      "low_8_bits": 4.57,
+      "low_4_bits": 3.86,
+      "first_difference": 4.06,
+      "predictor_from_previous": 4.12
+    },
+    "longest_run_identical": 5,
+    "max_same_low_byte_per_512": 47,
+    "samples_per_second": 7787.0
+  },
+  {
+    "periods_per_sample": 8,
+    "samples": 32768,
+    "mean_ticks": 23130.9,
+    "lsi_khz": 31.13,
+    "std_ticks": 19.32,
+    "distinct_values": 139,
+    "lag1_correlation": 0.83,
+    "min_entropy_bits": {
+      "full_value": 5.33,
+      "low_8_bits": 5.33,
+      "low_4_bits": 3.87,
+      "first_difference": 4.62,
+      "predictor_from_previous": 4.68
+    },
+    "longest_run_identical": 4,
+    "max_same_low_byte_per_512": 30,
+    "samples_per_second": 3891.0
+  }
+]

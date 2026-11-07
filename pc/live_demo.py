@@ -29,6 +29,7 @@ import serial
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from robotell import SERIAL_BAUD, encode, road_frame  # noqa: E402
 from signals import describe                          # noqa: E402
+from signed_link import KEY_FILE, Verifier            # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 ROAD = ROOT / "data" / "processed" / "road"
@@ -92,6 +93,8 @@ class Monitor(threading.Thread):
         self.events: list[tuple[float, dict]] = []
         self.verbose, self.stop, self.t0 = verbose, False, time.perf_counter()
         self.last_status_print = 0.0
+        self.verifier = Verifier()                   # every JSON line is signed with the device secret
+        self.warned = set()
 
     def run(self):
         buf = b""
@@ -111,6 +114,14 @@ class Monitor(threading.Thread):
                     if text and self.verbose:
                         print(f"  nucleo: {text}")
                     continue
+                verdict = self.verifier.check(text)
+                if verdict in ("forged", "replayed"):    # never acted on: shown and counted only
+                    print(f"  UNTRUSTED LINE ({verdict}), ignored: {text[:100]}")
+                    continue
+                if verdict in ("unsigned", "no_key") and verdict not in self.warned:
+                    self.warned.add(verdict)
+                    print("  note: the Nucleo's lines are unsigned (device secret missing or erased)" if verdict == "unsigned"
+                          else f"  note: no {KEY_FILE.name} on this PC: line signatures not checked")
                 self.events.append((now, ev))
                 self.show(now, ev)
 
@@ -130,7 +141,10 @@ class Monitor(threading.Thread):
                   f"queue max {ev['queue_max']} | overflow {ev['overflow']} | CAN errors TEC {ev['tec']} REC {ev['rec']}")
         elif kind == "boot":            # always shown: a reset in the middle of a run matters
             print(f"[{t:7.2f} s] NUCLEO RESTARTED (reset cause: {ev['reset']}) | read protection {ev['rdp']}, "
-                  f"brown-out reset {ev['bor']}, write-protected sectors {ev['wrp_sectors'] or 'none'}")
+                  f"brown-out reset {ev['bor']}, write-protected sectors {ev['wrp_sectors'] or 'none'}, "
+                  f"device secret {ev.get('secret', '?')}")
+        elif kind == "tamper":          # always shown
+            print(f"[{t:7.2f} s] TAMPER: {ev['msg']}")
         elif kind == "info" and self.verbose:
             print(f"[{t:7.2f} s]         nucleo: {ev['msg']}")
 
@@ -240,6 +254,10 @@ def print_summary(r: dict):
     print(f"  Nucleo: up to {r['nucleo_fps_max']} frames/s, detector CPU max {r['nucleo_cpu_pct_max']}%, "
           f"queue max {r['nucleo_queue_max']}, overflow {r['nucleo_overflow']}, CAN errors {r['can_errors_max']}")
     print(f"  replay timing: 99% of frames sent within {r['replay_late_ms_p99']} ms of their recorded time")
+    if "signed_lines" in r:
+        c = r["signed_lines"]
+        print(f"  serial link: {c['ok']} lines verified (HMAC), {c['forged']} forged, {c['replayed']} replayed, "
+              f"{c['unsigned']} unsigned")
     if r["nucleo_resets"]:
         print(f"  WARNING: the Nucleo restarted during the run ({', '.join(r['nucleo_resets'])})")
 
@@ -257,6 +275,7 @@ def run_one(name: str, full: bool, args, verbose: bool = True, max_minutes: floa
     time.sleep(2.0)                     # let the last incident close (1 s without flagged frames)
     mon.close()
     r = summarize(name, df, rp, mon.events)
+    r["signed_lines"] = dict(mon.verifier.counts)
     print_summary(r)
     return r
 
