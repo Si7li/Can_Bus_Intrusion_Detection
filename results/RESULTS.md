@@ -435,7 +435,7 @@ piece (21.3 min of clean driving), 123 min in all. Command:
   steering_angle_replay, parking_break, ems_replay_long, fuzzing_random_ids). Avoid
   multiple_attacks and reverse_speedometer_fuzzing.
 
-## 7. Device protection (step 3, in progress)
+## 7. Device protection (step 3)
 
 The detector itself has to survive attacks on the device: someone hanging it, glitching
 its supply, reading its firmware out, or flashing a version without the detector.
@@ -459,6 +459,10 @@ cause and the protection settings it reads from the option bytes:
 | L1 | **Secure boot**: the bootloader starts only firmware whose header carries a valid ECDSA P-256 signature (key made and kept on the PC) and whose SHA-256 matches | `pc/secure_boot_demo.py` | **PASS**: valid image started; **1 bit changed** in the application → refused (hash mismatch); version raised in the header without re-signing → refused (bad signature); signed with **another key** → refused; **no header** → refused; check time 72 ms (signature) + 53 ms (SHA-256 of 137 KB) |
 | L1b | **Anti-rollback**: the bootloader remembers the newest version it accepted (log in flash sector 2) | `pc/secure_boot_demo.py` | **PASS**: an older but correctly signed version → refused |
 | P3 | **Brown-out reset level 3** (option byte BOR_LEV): the chip is held in reset below 2.70 V instead of running at a voltage where flash reads and code can go wrong (simple supply glitches) | option bytes read back by the firmware at boot | **set**: `bor: level3_2.70V` (not tested with a real supply dip) |
+| L1c | **Write protection** (option bytes nWRP0/1) on sectors 0–1: the bootloader and its public key | `security_demo.py wrp` | **PASS**: without WRP the bootloader could be overwritten over SWD; with WRP → refused ("failed to erase memory"); signed firmware updates (sectors 3–7) still work |
+| P1 | **Read protection level 1** (option byte RDP) | `security_demo.py readout` | **PASS**: at level 0 the debugger reads the firmware (and the trained model); at level 1 → **refused** for the application and the bootloader |
+| P1-run | IDS running locked (RDP 1 + WRP + BOR) | power cycle, then serial only | **PASS**: boots, secure boot verified, self-test passed, live max_speedometer ALERT 345 ms, 0 false, 0 frames lost; provisioning over serial works. (After a debugger has touched a locked chip, flash stays blocked until a power-on reset: the F4's intended behaviour) |
+| P1b | **Unlock attack**: RDP 1 → 0 (allowed, but mass-erases the flash), then read the key from backup memory | `security_demo.py unlock` | **PASS after a fix**: flash erased (bootloader, rollback log, header, app). **First version: the device secret survived** in the RTC backup registers and was usable by newly flashed firmware. **Fixed with a split key** (below): the unlock erases share B, share A alone is random; the reinstalled IDS reports `"secret":"erased","erased_by":"debug_unlock"` |
 
 - **Why 250 ms:** the IWDG runs on the internal LSI oscillator, which the datasheet only
   guarantees between 17 and 47 kHz, so 250 ms nominal can be as short as ~170 ms. The longest
@@ -517,8 +521,21 @@ cause and the protection settings it reads from the option bytes:
   marks the status line `"secret":"erased"`. Detection keeps running: losing the key must
   not switch off the IDS.
 - **Erased vs missing:** at power-up the firmware writes a "blank" marker into a sixth backup
-  register. A tamper clears it too, so `erased` means "tampered since the last power-up"
-  and `missing` means "power was lost, not provisioned since".
+  register. A tamper clears it too, so `erased` means the key was destroyed since the last
+  power-up, and `missing` means "power was lost, not provisioned since". `erased_by` says how:
+  `tamper` or `debug_unlock` (next point).
+- **Split key (added after the unlock test, P1b):** the key k is stored as two shares, k = A XOR B.
+  - **Share A** is in the RTC backup registers, which a **tamper** erases in hardware.
+  - **Share B** is in the 4 KB backup SRAM, which **lowering read protection from 1 to 0**
+    erases, together with the flash. Measured on this board: that same unlock leaves the
+    backup registers untouched, which is how the first version's key survived.
+  - B is fresh random data from the entropy source, so each share alone is random and
+    destroying either one destroys the key.
+  - At boot: if share A is there but B is gone, the key was lost to a debug unlock, so the
+    firmware wipes A and remembers the cause in a seventh backup register (`erased_by` stays
+    `debug_unlock` across restarts). If A is gone, it was a tamper.
+  - Checked: A XOR B equals the PC's copy of the key, and neither share alone does. After
+    the unlock attack, share A is still readable but share B is zero.
 - **Limit of the Nucleo:** VBAT is wired to the 3.3 V supply, so unplugging USB also clears
   the key, and nothing watches the switch while the board is off. A coin cell on VBAT
   (after opening the board's VBAT-to-VDD solder bridge, see the Nucleo user manual UM1724)
@@ -605,5 +622,26 @@ Flash layout (`firmware/can_ids_fw/Core/Inc/secure_boot.h`):
     sign firmware. A real project keeps it in a hardware security module (HSM). It is not
     encrypted with a passphrase here.
 
-Still to do: write protection of the bootloader (L1c), read protection level 1 (P1, P1b).
-Level 2 is permanent (the board can never be reflashed or debugged again) and is not applied.
+### Write and read protection: notes
+- **Development vs presentation state:** the board is kept at RDP level 0 with WRP on, so the
+  PC tools (restart, flashing, provisioning) keep working. For the final demo, set level 1:
+  `STM32_Programmer_CLI -c port=SWD mode=UR -ob RDP=0xBB`, then unplug and replug USB once.
+  Going back (`-ob RDP=0xAA nWRP0=1 nWRP1=1`) erases the flash. Then reinstall the bootloader
+  and the signed IDS (README), re-apply WRP and provision a new key: `security_demo.py
+  unlock` does all of it and checks the key was destroyed.
+- **What RDP 1 does not stop:** anyone with SWD can still *erase* the chip and reuse it. That is
+  allowed by design: they get a blank chip, not our firmware, model or key. The anti-rollback
+  log is erased too, but so is everything else, and only firmware signed with our key would
+  start under our bootloader.
+- **Level 2 (0xCC)** would also block that erase and disable debugging for good. It is
+  permanent (the board could never be reflashed), so it is documented, not applied. A
+  production ECU would use it, after the final firmware is in.
+- **Write protection and updates:** only sectors 0–1 are protected, so the IDS can still be
+  updated. Replacing the bootloader itself needs WRP lifted first (`-ob nWRP0=1 nWRP1=1`),
+  which a debugger can do at level 0 but not at level 1.
+
+**Step 3 summary:** watchdog, brown-out reset, tamper switch, a device secret generated on the
+chip (entropy source + ECDH, split between tamper-erased and unlock-erased memory), signed
+serial lines, secure boot with anti-rollback, write protection, read protection. Every
+protection has a test in `pc/security_demo.py` or `pc/secure_boot_demo.py`, logged in
+`results/security_tests.txt`.

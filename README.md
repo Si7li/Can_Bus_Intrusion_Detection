@@ -194,6 +194,11 @@ python pc/security_demo.py watchdog    # hang the main loop on purpose -> watchd
 python pc/security_demo.py provision   # ECDH: the chip makes its own secret (refused if one is present)
 python pc/entropy_check.py             # measure the on-chip entropy source (raw samples -> min-entropy)
 python pc/secure_boot_demo.py          # modified / re-versioned / foreign-key / unsigned / older firmware: all refused
+python pc/security_demo.py readout     # can a debugger read the firmware? (yes at RDP 0, refused at RDP 1)
+python pc/security_demo.py wrp         # can the bootloader be overwritten? (refused with write protection)
+python pc/security_demo.py unlock      # lock, try to read, unlock (= mass erase): key destroyed? reinstalls (~2 min)
+STM32_Programmer_CLI -c port=SWD mode=UR -ob nWRP0=0 nWRP1=0    # write-protect the bootloader (sectors 0-1)
+STM32_Programmer_CLI -c port=SWD mode=UR -ob RDP=0xBB           # read protection level 1 (then unplug/replug USB)
 python pc/security_demo.py tamper      # press the blue button = enclosure opened -> secret erased
 python pc/security_demo.py signing     # every JSON line is HMAC-signed: forged / replayed lines rejected
 STM32_Programmer_CLI -c port=SWD mode=UR -ob BOR_LEV=0    # brown-out reset level 3 (2.70 V); BOR_LEV=3 = off

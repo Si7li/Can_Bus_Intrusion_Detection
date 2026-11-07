@@ -154,14 +154,38 @@ void sec_poll_commands(void)
    stuck. With a coin cell on VBAT this also works with the board unpowered; on the Nucleo,
    VBAT is tied to VDD, so unplugging USB also erases them (the next boot reports
    "missing" with power_lost, not "erased"). */
-#define SECRET_MARK 0x5EC2E7A1u
-#define BLANK_MARK  0xB1A4C000u   /* BKP5: power was lost, slot empty, waiting for a key */
+/* SPLIT KEY. The 128-bit secret k is never stored as such: k = A XOR B, with
+     share A in the RTC backup registers BKP1-BKP4 (marker BKP0): erased by a TAMPER event
+     share B in the 4 KB backup SRAM, words 0-3 (marker word 4):  erased when read protection
+             is lowered from level 1 to 0 (the "debug unlock" that also mass-erases the flash)
+   Each share alone is uniformly random (B comes from the entropy source), so destroying
+   either one destroys the key. Measured on this board: an RDP 1 -> 0 regression erased the
+   flash and the backup SRAM but NOT the backup registers (RESULTS.md section 7), which is
+   why a key kept only in the backup registers survived a debug unlock. */
+#define SECRET_MARK  0x5EC2E7A1u   /* BKP0: share A present */
+#define SHARE_B_MARK 0x5EC2B5A3u   /* backup SRAM word 4: share B present */
+#define BLANK_MARK   0xB1A4C000u   /* BKP5: power was lost, slot empty, waiting for a key */
 /* BKP6: boot counter since provisioning (for signed lines) */
+#define UNLOCK_MARK  0xDEB06A1Bu   /* BKP7: the key was destroyed by a debug unlock (kept across resets;
+                                      a tamper clears it like every backup register) */
 #define BKP(n) (*(&RTC->BKP0R + (n)))
+#define BKSRAM ((volatile uint32_t *)BKPSRAM_BASE)
 
 typedef enum { SECRET_PRESENT, SECRET_MISSING, SECRET_ERASED } secret_state_t;
 static secret_state_t secret_state;
+static const char *erased_by = "";     /* "tamper" or "debug_unlock" */
 static int power_lost;
+
+static int key_present(void) { return BKP(0) == SECRET_MARK && BKSRAM[4] == SHARE_B_MARK; }
+static uint32_t key_word(int w) { return BKP(1 + w) ^ BKSRAM[w]; }     /* word w of k = A XOR B */
+static void key_get(uint8_t k[16])
+{
+  for (int i = 0; i < 16; i++) k[i] = (uint8_t)(key_word(i / 4) >> (24 - 8 * (i % 4)));
+}
+static void key_wipe(void)             /* destroy both shares (one is already gone) */
+{
+  for (int i = 0; i < 5; i++) { BKP(i) = 0; BKSRAM[i] = 0; }
+}
 static volatile int tamper_pending;
 static int tamper_armed;
 static uint32_t release_tick;
@@ -169,8 +193,8 @@ static uint32_t release_tick;
 static uint32_t secret_id(void)        /* FNV-1a over the 16 key bytes: a fingerprint, not the key */
 {
   uint32_t h = 2166136261u;
-  for (int w = 1; w <= 4; w++)
-    for (int b = 0; b < 4; b++) { h ^= (BKP(w) >> (8 * b)) & 0xFFu; h *= 16777619u; }
+  for (int w = 0; w < 4; w++)
+    for (int b = 0; b < 4; b++) { h ^= (key_word(w) >> (8 * b)) & 0xFFu; h *= 16777619u; }
   return h;
 }
 
@@ -207,10 +231,18 @@ void sec_tamper_init(void)
   }
   /* A tamper erases every backup register, BKP5 included, so "erased" can only mean a tamper
      (since the last power-up), and an empty slot after a power loss stays "missing" across resets. */
+  RCC->AHB1ENR |= RCC_AHB1ENR_BKPSRAMEN;      /* share B lives in the backup SRAM */
+  (void)RCC->AHB1ENR;
   if (power_lost) BKP(5) = BLANK_MARK;
-  if (BKP(0) == SECRET_MARK) { secret_state = SECRET_PRESENT; BKP(6) = BKP(6) + 1; }
-  else if (BKP(5) == BLANK_MARK) secret_state = SECRET_MISSING;   /* not provisioned since power-up */
-  else secret_state = SECRET_ERASED;
+  int a = BKP(0) == SECRET_MARK, b = BKSRAM[4] == SHARE_B_MARK;
+  if (a && b) { secret_state = SECRET_PRESENT; BKP(6) = BKP(6) + 1; }
+  else if (!a && BKP(5) == BLANK_MARK) secret_state = SECRET_MISSING;   /* not provisioned since power-up */
+  else {
+    secret_state = SECRET_ERASED;
+    if (a) BKP(7) = UNLOCK_MARK;               /* share A left, share B gone: RDP regression (debug unlock) */
+    erased_by = BKP(7) == UNLOCK_MARK ? "debug_unlock" : "tamper";
+    key_wipe();
+  }
 
   EXTI->IMR |= EXTI_IMR_MR21;                /* RTC tamper/timestamp = EXTI line 21, rising */
   EXTI->RTSR |= EXTI_RTSR_TR21;
@@ -237,7 +269,9 @@ void sec_tamper_poll(void)
   if (tamper_pending) {
     tamper_pending = 0;
     secret_state = SECRET_ERASED;
+    erased_by = "tamper";
     int zero = BKP(0) == 0 && BKP(1) == 0 && BKP(2) == 0 && BKP(3) == 0 && BKP(4) == 0 && BKP(5) == 0;
+    key_wipe();                              /* share A is gone (hardware); clear share B too */
     GPIOA->BSRR = GPIO_BSRR_BS5;             /* LD2 on: stays on until the next reset */
     printf("{\"type\":\"tamper\",\"t_ms\":%lu,\"msg\":\"enclosure opened: device secret erased\","
            "\"backup_registers_zero\":%s}\r\n", HAL_GetTick(), zero ? "true" : "false");
@@ -258,13 +292,13 @@ const char *sec_secret_state(void)
 
 const char *sec_secret_json(void)
 {
-  static char buf[96];
+  static char buf[112];
   if (secret_state == SECRET_PRESENT)
     snprintf(buf, sizeof buf, "\"secret\":\"present\",\"secret_id\":\"%08lx\"", (unsigned long)secret_id());
+  else if (secret_state == SECRET_MISSING)                /* BKP5 marker = power was lost */
+    snprintf(buf, sizeof buf, "\"secret\":\"missing\",\"secret_id\":null,\"power_lost\":true");
   else
-    snprintf(buf, sizeof buf, "\"secret\":\"%s\",\"secret_id\":null%s",
-             secret_state == SECRET_ERASED ? "erased" : "missing",
-             secret_state == SECRET_MISSING ? ",\"power_lost\":true" : "");   /* BKP5 marker = power was lost */
+    snprintf(buf, sizeof buf, "\"secret\":\"erased\",\"secret_id\":null,\"erased_by\":\"%s\"", erased_by);
   return buf;
 }
 
@@ -353,8 +387,18 @@ void sec_secret_provision_ecdh(const char *hex128)
     sha256_update(&c, dev_pub, 64);
     sha256_update(&c, pc_pub, 64);
     sha256_final(&c, k);
-    for (int w = 0; w < 4; w++)
-      BKP(w + 1) = (uint32_t)k[4 * w] << 24 | (uint32_t)k[4 * w + 1] << 16 | (uint32_t)k[4 * w + 2] << 8 | k[4 * w + 3];
+    uint8_t share_b[16];
+    drbg_rng(share_b, sizeof share_b);       /* fresh random share B, from the same seed */
+    for (int w = 0; w < 4; w++) {
+      uint32_t kw = (uint32_t)k[4 * w] << 24 | (uint32_t)k[4 * w + 1] << 16 | (uint32_t)k[4 * w + 2] << 8 | k[4 * w + 3];
+      uint32_t bw = (uint32_t)share_b[4 * w] << 24 | (uint32_t)share_b[4 * w + 1] << 16 |
+                    (uint32_t)share_b[4 * w + 2] << 8 | share_b[4 * w + 3];
+      BKSRAM[w] = bw;                         /* share B: backup SRAM */
+      BKP(w + 1) = kw ^ bw;                   /* share A: backup registers */
+    }
+    memset(share_b, 0, sizeof share_b);
+    BKSRAM[4] = SHARE_B_MARK;
+    BKP(7) = 0;
     BKP(0) = SECRET_MARK;
     BKP(5) = 0;
     BKP(6) = 1;                               /* first boot of this key */
@@ -401,9 +445,9 @@ static void send_line(void)
       && n + 96 < sizeof line_buf) {
     n -= 3;                                                   /* drop "}\r\n" */
     n += (uint32_t)sprintf(b + n, ",\"boot\":%lu,\"seq\":%lu}", (unsigned long)BKP(6), (unsigned long)seq_no++);
-    if (BKP(0) == SECRET_MARK) {                              /* read the key now: a tamper may have just erased it */
+    if (key_present()) {                                      /* read the key now: a tamper may have just erased it */
       uint8_t key[16], mac[32];
-      for (int i = 0; i < 16; i++) key[i] = (uint8_t)(BKP(1 + i / 4) >> (24 - 8 * (i % 4)));
+      key_get(key);
       uint32_t t0 = DWT->CYCCNT;
       hmac_sha256(key, sizeof key, b, n, mac);
       hmac_cycles = DWT->CYCCNT - t0;

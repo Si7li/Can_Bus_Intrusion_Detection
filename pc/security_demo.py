@@ -5,6 +5,10 @@
     python pc/security_demo.py provision    # ECDH: the chip makes its own secret (only if none is present)
     python pc/security_demo.py tamper       # demo P2: press the blue button = enclosure opened -> secret erased
     python pc/security_demo.py signing      # every JSON line is signed: forged / replayed lines are rejected
+    python pc/security_demo.py readout      # P1: can a debugger read the firmware out of flash? (RDP)
+    python pc/security_demo.py wrp          # L1c: can the bootloader be overwritten? (write protection)
+    python pc/security_demo.py unlock       # P1 + P1b: lock (RDP 1), try to read, unlock (RDP 0 = mass erase):
+                                            #   is the device secret destroyed? Then reinstalls everything (~2 min)
 
 The ST-LINK serial port (/dev/ttyACM0) carries the Nucleo's JSON lines; the restart
 uses STM32_Programmer_CLI (bundled with STM32CubeIDE) over SWD, without erasing anything.
@@ -14,6 +18,7 @@ Each run appends its result to results/security_tests.txt.
 import argparse
 import glob
 import json
+import re
 import secrets
 import shutil
 import subprocess
@@ -105,7 +110,7 @@ def cmd_watchdog(s):
     read_lines(s, 1.0)                                # detector running normally
     print("Sending 'H': the firmware stops its main loop on purpose...")
     t_send = time.perf_counter()
-    s.write(b"H")
+    s.write(b"\nH")                                  # newline first: clears any partial line in the firmware
     s.flush()
     lines = read_lines(s, 3.0)
     hung = next((t for t, text in lines if "hung on purpose" in text), None)
@@ -229,10 +234,11 @@ def cmd_tamper(s, wait_s: float = 30.0):
     restart()
     again = boot_event(read_lines(s, 3.0))
     after = again[1].get("secret") if again else "?"
-    print(f"After a restart the Nucleo still reports: secret {after}")
-    passed = ev[0][1]["backup_registers_zero"] and live == "erased" and after == "erased"
+    by = again[1].get("erased_by") if again else "?"
+    print(f"After a restart the Nucleo still reports: secret {after} (erased by: {by})")
+    passed = ev[0][1]["backup_registers_zero"] and live == "erased" and after == "erased" and by == "tamper"
     log("tamper", passed, f"button pressed -> secret erased in hardware (registers zero: "
-        f"{ev[0][1]['backup_registers_zero']}), status '{live}', after restart '{after}'")
+        f"{ev[0][1]['backup_registers_zero']}), status '{live}', after restart '{after}' (erased_by {by})")
     print("(Run 'provision' to give the chip a new secret.)")
 
 
@@ -276,14 +282,141 @@ def cmd_signing(s):
                            f"replayed line {r_replay}, other key {r_wrong}; HMAC {mac_us} us per line on the chip")
 
 
+def cli(*args: str) -> str:
+    r = subprocess.run([programmer(), "-c", "port=SWD", *args], capture_output=True, text=True)
+    return re.sub(r"\x1b\[[0-9;]*m", "", r.stdout + r.stderr)
+
+
+def option_bytes() -> dict:
+    out = cli("mode=HOTPLUG", "-ob", "displ")
+    ob = {}
+    for name in ("RDP", "BOR_LEV", "nWRP0", "nWRP1", "nWRP2", "nWRP3"):
+        m = re.search(rf"{name}\s*:\s*(0x[0-9A-Fa-f]+)", out)
+        ob[name] = int(m.group(1), 16) if m else None
+    return ob
+
+
+def rdp_name(v) -> str:
+    return "unknown" if v is None else "level 0" if v == 0xAA else "level 2" if v == 0xCC else "level 1"
+
+
+def cmd_readout(_s):
+    """P1: read 64 bytes of the application (0x08010000) and of the bootloader over SWD."""
+    ob = option_bytes()
+    results = []
+    for name, addr in (("application", "0x08010000"), ("bootloader", "0x08000000")):
+        out = cli("mode=HOTPLUG", "-r32", addr, "64")
+        words = re.findall(rf"{addr[:-1]}\w : ((?:[0-9A-F]{{8}} ?)+)", out)
+        ok = bool(words)
+        results.append(ok)
+        print(f"  read {name} at {addr}: " + (f"SUCCEEDED, first words {words[0].split()[:4]}" if ok
+              else "FAILED: " + (re.findall(r"Error[^\n]*", out) or ["no data"])[0]))
+    level = rdp_name(ob["RDP"])
+    readable = all(results)
+    passed = (level == "level 0" and readable) or (level == "level 1" and not any(results))
+    log("readout", passed, f"RDP {level}: flash read over SWD {'succeeded (firmware and model can be copied)' if readable else 'refused'}")
+
+
+def cmd_wrp(s):
+    """L1c: try to rewrite the bootloader (the same bytes, so harmless if not protected),
+    then check the bootloader still verifies the IDS and a normal signed update still works."""
+    import sign_firmware as sf
+    ob = option_bytes()
+    protected = [n for n in ("nWRP0", "nWRP1") if ob[n] == 0]
+    print(f"  write protection: sectors {', '.join(n[-1] for n in protected) or 'none'}")
+    bl = ROOT / "bootloader" / "build" / "bootloader.elf"
+    out = cli("mode=UR", "-w", str(bl), "-v")
+    written = "Download verified successfully" in out
+    err = (re.findall(r"(?:Error|Warning)[^\n]*", out) or ["-"])[0]
+    print(f"  overwrite the bootloader over SWD: {'SUCCEEDED' if written else 'REFUSED: ' + err}")
+    restart()                                       # the bootloader states the current minimum version
+    sb = json_events(read_lines(s, 3.0), "secure_boot")
+    version = sb[0][1]["min_version"] if sb else 1
+    img = sf.BUILD / "wrp_test_signed.bin"
+    img.write_bytes(sf.signed_image(sf.APP_BIN.read_bytes(), version, sf.load_key()))
+    s.reset_input_buffer()
+    upd = sf.flash(img)
+    print(f"  normal signed firmware update (sectors 3-7, version {version}): {'succeeded' if upd else 'FAILED'}")
+    b = boot_event(read_lines(s, 3.0))
+    verified = bool(b and b[1].get("secure_boot", {}).get("verified"))
+    print(f"  after both: secure boot {'verified' if verified else 'NOT verified'}")
+    passed = verified and upd and (written != bool(protected))
+    log("wrp", passed, f"sectors protected: {', '.join(n[-1] for n in protected) or 'none'}; bootloader overwrite "
+                       f"{'succeeded' if written else 'refused'}; signed update {'ok' if upd else 'failed'}; "
+                       f"secure boot after: {'verified' if verified else 'NOT verified'}")
+
+
+def read_words(addr: str, n: int = 5) -> list[str]:
+    out = cli("mode=HOTPLUG", "-r32", addr, str(4 * n))
+    return " ".join(re.findall(r"0x4\w+ : ((?:[0-9A-F]{8} ?)+)", out)).split()
+
+
+def enable_bkpsram_clock():
+    ahb1 = int(read_words("0x40023830", 1)[0], 16)
+    cli("mode=HOTPLUG", "-w32", "0x40023830", f"0x{ahb1 | 0x40000:08X}")
+
+
+def reinstall(s) -> dict | None:
+    """Bootloader + the current signed image + write protection, after a mass erase."""
+    import sign_firmware as sf
+    cli("mode=UR", "-ob", "nWRP0=1", "nWRP1=1")
+    cli("mode=UR", "reset=HWrst", "-w", str(ROOT / "bootloader" / "build" / "bootloader.elf"), "-v")
+    sf.flash()
+    cli("mode=UR", "-ob", "nWRP0=0", "nWRP1=0")
+    restart()
+    b = boot_event(read_lines(s, 3.0))
+    return b[1] if b else None
+
+
+def cmd_unlock(s):
+    """The attack a debugger owner would try on a locked board: lower read protection (which
+    mass-erases the flash), then load their own code and read the key from backup memory.
+    The key is split: A in the RTC backup registers, B in the backup SRAM; the unlock must
+    destroy B, so A alone (random) is useless."""
+    restart()
+    b = boot_event(read_lines(s, 3.0))
+    if not b or b[1].get("secret") != "present":
+        ok, msg, _ = provision(s)
+        print("provisioned a key first:", msg)
+    print("1) lock: read protection level 1")
+    cli("mode=UR", "-ob", "RDP=0xBB")
+    locked_read = bool(re.findall(r"0x08010000 : ([0-9A-F]{8})", cli("mode=HOTPLUG", "-r32", "0x08010000", "16")))
+    print(f"   debugger reads the firmware: {'YES (!)' if locked_read else 'refused'}")
+    print("2) unlock: read protection back to level 0 (the chip mass-erases its flash)")
+    cli("mode=UR", "-ob", "RDP=0xAA", "nWRP0=1", "nWRP1=1")
+    time.sleep(2)
+    flash = re.findall(r"0x08010000 : ([0-9A-F]{8})", cli("mode=HOTPLUG", "-r32", "0x08010000", "16"))
+    erased = bool(flash) and flash[0] == "FFFFFFFF"
+    share_a = read_words("0x40002850")
+    enable_bkpsram_clock()
+    share_b = read_words("0x40024000")
+    a_left = bool(share_a) and share_a[0] == "5EC2E7A1"
+    b_gone = bool(share_b) and all(w == "00000000" for w in share_b)
+    print(f"   flash erased: {erased}; share A (backup registers) still there: {a_left}; share B (backup SRAM) erased: {b_gone}")
+    key = load_key()
+    rebuilt = "".join(share_a[1:5]).lower() if a_left else ""
+    print(f"   attacker's best guess (share A alone) equals the key: {rebuilt == (key.hex() if key else None)}")
+    print("3) reinstall bootloader + signed IDS + write protection")
+    first = reinstall(s)
+    restart()
+    second = boot_event(read_lines(s, 3.0))
+    verdicts = [first and first.get("erased_by"), second and second[1].get("erased_by")]
+    print(f"   IDS after reinstall: secret {first and first.get('secret')}, erased_by {verdicts[0]}; after another restart: {verdicts[1]}")
+    passed = not locked_read and erased and b_gone and rebuilt != (key.hex() if key else None) and verdicts == ["debug_unlock"] * 2
+    log("unlock", passed, f"RDP1 read refused: {not locked_read}; RDP 1->0 erased flash: {erased}, share B: {b_gone}, "
+                          f"share A left: {a_left} (useless alone); IDS reports erased_by {verdicts[0]} (and after restart: {verdicts[1]})")
+    print("(Run 'provision' to give the chip a new secret.)")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("test", choices=["status", "watchdog", "provision", "tamper", "signing"])
+    ap.add_argument("test", choices=["status", "watchdog", "provision", "tamper", "signing", "readout", "wrp", "unlock"])
     ap.add_argument("--nucleo", default="/dev/ttyACM0")
     args = ap.parse_args()
     with serial.Serial(args.nucleo, NUCLEO_BAUD, timeout=0.05) as s:
         {"status": cmd_status, "watchdog": cmd_watchdog, "provision": cmd_provision,
-         "tamper": cmd_tamper, "signing": cmd_signing}[args.test](s)
+         "tamper": cmd_tamper, "signing": cmd_signing, "readout": cmd_readout, "wrp": cmd_wrp,
+         "unlock": cmd_unlock}[args.test](s)
 
 
 if __name__ == "__main__":
