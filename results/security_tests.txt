@@ -24,3 +24,8 @@
 2026-11-07 12:13:34  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset level3_2.70V | write-protected sectors none | watchdog 250 ms | demo commands on | device secret present (id 29f68eef)
 2026-11-07 12:14:03  keygen     PASS  invalid PC public key refused: True; 3 provisionings -> 3 different chip key pairs; 244-245 ms each; last secret kept, PC copy saved
 2026-11-07 12:14:07  signing    PASS  6/6 lines verified; changed line forged, made-up alert forged, replayed line replayed, other key forged; HMAC 219 us per line on the chip
+2026-11-07 12:37:20  secureboot PASS  valid: started (version 2, check 72 + 53 ms); modified: refused: image hash mismatch (application changed); header: refused: bad signature (not signed with the firmware key, or header changed); wrong_key: refused: bad signature (not signed with the firmware key, or header changed); unsigned: refused: no valid image header; rollback: refused: rollback: version older than one already accepted; restore: started (version 2, check 72 + 53 ms)
+2026-11-07 12:37:36  watchdog   PASS  hang -> restart in 351 ms (timeout 250 ms nominal), reset cause reported: watchdog
+2026-11-07 12:37:40  signing    FAIL  5/6 lines verified; changed line forged, made-up alert forged, replayed line unsigned, other key forged; HMAC 218 us per line on the chip
+2026-11-07 12:39:18  signing    PASS  9/9 lines verified; changed line forged, made-up alert forged, replayed line replayed, other key forged; HMAC 218 us per line on the chip
+2026-11-07 12:39:21  status     PASS  reset cause software | read protection (RDP) level0 | brown-out reset level3_2.70V | write-protected sectors none | watchdog 250 ms | demo commands on | device secret present (id a11e1810)

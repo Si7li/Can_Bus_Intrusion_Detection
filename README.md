@@ -137,12 +137,27 @@ self-test on 3,600 real ROAD frames and prints the result and the time per frame
 the serial port (`/dev/ttyACM0`, 921600 baud), then reports incidents as JSON lines. PC side of the bus: `pc/adapter_test.py`
 (USB-CAN adapter, Robotell protocol, 1 Mbaud serial).
 
-Build and flash without the IDE (CubeIDE's compiler and STM32_Programmer_CLI):
+Build, sign and flash without the IDE (CubeIDE's compiler and STM32_Programmer_CLI). The
+application runs behind a **secure bootloader** (`bootloader/`, see "Device protection"):
+it starts only firmware signed with the private key in `keys/`.
 
 ```bash
-bash firmware/build.sh               # -> firmware/can_ids_fw/build/can_ids_fw.elf
-STM32_Programmer_CLI -c port=SWD mode=UR reset=HWrst -w firmware/can_ids_fw/build/can_ids_fw.elf -v -rst
+bash firmware/build.sh                              # -> firmware/can_ids_fw/build/can_ids_fw.bin
+python pc/sign_firmware.py sign --version 3         # version must be >= the last one installed
+python pc/sign_firmware.py flash                    # header + application at 0x0800C000, then restart
 ```
+
+Installing the bootloader on a new board (once; the full erase removes any old firmware):
+
+```bash
+python pc/sign_firmware.py keygen                   # once per project: keys/fw_signing_key.pem + bootloader/inc/fw_pubkey.h
+bash bootloader/build.sh
+STM32_Programmer_CLI -c port=SWD mode=UR reset=HWrst -e all -w bootloader/build/bootloader.elf -v
+python pc/sign_firmware.py sign --version 1 && python pc/sign_firmware.py flash
+```
+
+Keep a backup of `keys/fw_signing_key.pem` (not in git): without it no new firmware can be
+signed for boards that have this bootloader.
 
 ### CAN-MIRGU (second car)
 
@@ -156,7 +171,7 @@ IDS_DATASET=mirgu python road_train_mlp.py            # train + threshold on val
 IDS_DATASET=mirgu python mirgu_eval.py --final        # rules only vs ROAD v2 cross-car vs MIRGU model, val + test
 IDS_DATASET=mirgu python export_c.py                  # MIRGU headers for the firmware (plain export_c.py = ROAD)
 IDS_DATASET=mirgu python check_c_detector.py          # C vs Python, bit-exact
-cd ../.. && bash firmware/build.sh                    # then flash as above
+cd ../.. && bash firmware/build.sh                    # then sign and flash as above
 python pc/live_demo.py --dataset mirgu max_speedometer_attack
 python pc/live_demo.py --dataset mirgu --all-test --clean-minutes 10    # ~2 h
 ```
@@ -178,6 +193,7 @@ python pc/security_demo.py status      # restart the Nucleo: reset cause, RDP / 
 python pc/security_demo.py watchdog    # hang the main loop on purpose -> watchdog reset (~250 ms)
 python pc/security_demo.py provision   # ECDH: the chip makes its own secret (refused if one is present)
 python pc/entropy_check.py             # measure the on-chip entropy source (raw samples -> min-entropy)
+python pc/secure_boot_demo.py          # modified / re-versioned / foreign-key / unsigned / older firmware: all refused
 python pc/security_demo.py tamper      # press the blue button = enclosure opened -> secret erased
 python pc/security_demo.py signing     # every JSON line is HMAC-signed: forged / replayed lines rejected
 STM32_Programmer_CLI -c port=SWD mode=UR -ob BOR_LEV=0    # brown-out reset level 3 (2.70 V); BOR_LEV=3 = off

@@ -139,10 +139,14 @@ class Monitor(threading.Thread):
             self.last_status_print = now
             print(f"[{t:7.2f} s]         bus {ev['fps']} frames/s | detector CPU {ev['cpu_pct']}% | "
                   f"queue max {ev['queue_max']} | overflow {ev['overflow']} | CAN errors TEC {ev['tec']} REC {ev['rec']}")
+        elif kind == "secure_boot":     # always shown
+            print(f"[{t:7.2f} s] BOOTLOADER: " + ("firmware signature valid, version " + str(ev["fw_version"]) if ev["ok"]
+                                                  else "FIRMWARE REFUSED: " + ev["reason"]))
         elif kind == "boot":            # always shown: a reset in the middle of a run matters
             print(f"[{t:7.2f} s] NUCLEO RESTARTED (reset cause: {ev['reset']}) | read protection {ev['rdp']}, "
                   f"brown-out reset {ev['bor']}, write-protected sectors {ev['wrp_sectors'] or 'none'}, "
-                  f"device secret {ev.get('secret', '?')}")
+                  f"device secret {ev.get('secret', '?')}, secure boot "
+                  + (f"verified (version {ev['secure_boot']['fw_version']})" if ev.get("secure_boot", {}).get("verified") else "NOT verified"))
         elif kind == "tamper":          # always shown
             print(f"[{t:7.2f} s] TAMPER: {ev['msg']}")
         elif kind == "info" and self.verbose:
@@ -257,7 +261,7 @@ def print_summary(r: dict):
     if "signed_lines" in r:
         c = r["signed_lines"]
         print(f"  serial link: {c['ok']} lines verified (HMAC), {c['forged']} forged, {c['replayed']} replayed, "
-              f"{c['unsigned']} unsigned")
+              f"{c['unsigned']} unsigned" + (f", {c['bootloader']} from the bootloader" if c.get("bootloader") else ""))
     if r["nucleo_resets"]:
         print(f"  WARNING: the Nucleo restarted during the run ({', '.join(r['nucleo_resets'])})")
 

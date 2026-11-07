@@ -7,10 +7,12 @@
 #include "sha256.h"
 #include "ids_entropy.h"
 #include "uecc/uECC.h"
+#include "secure_boot.h"
 
 extern UART_HandleTypeDef huart2;
 
 static const char *reset_cause = "unknown";
+static void capture_boot_report(void);
 
 /* RCC_CSR keeps the reset flags until RMVF clears them. Several can be set at once:
    every internal reset also pulls the NRST pin (PINRSTF), and a power-on also sets
@@ -26,9 +28,21 @@ void sec_capture_reset_cause(void)
   else if (csr & RCC_CSR_BORRSTF)  reset_cause = "brown_out";      /* supply dipped below the BOR level */
   else if (csr & RCC_CSR_PINRSTF)  reset_cause = "reset_pin";      /* black button, ST-LINK hardware reset */
   RCC->CSR |= RCC_CSR_RMVF;
+  capture_boot_report();
 }
 
 const char *sec_reset_cause(void) { return reset_cause; }
+
+/* What the secure bootloader verified before starting us (secure_boot.h). */
+static sb_bootinfo_t boot_report;
+static void capture_boot_report(void)
+{
+  boot_report.magic = SB_BOOTINFO->magic;
+  boot_report.fw_version = SB_BOOTINFO->fw_version;
+  boot_report.min_version = SB_BOOTINFO->min_version;
+  boot_report.check_ms = SB_BOOTINFO->check_ms;
+  SB_BOOTINFO->magic = 0;            /* the next boot must be verified again */
+}
 
 /* Option bytes (FLASH_OPTCR), read-only here; they are changed with STM32_Programmer_CLI.
      RDP     [15:8]  0xAA = level 0 (open), 0xCC = level 2 (permanent), anything else = level 1
@@ -48,10 +62,16 @@ void sec_report_boot(void)
   for (int s = 0; s < 8; s++)
     if (!pcrop && !(nwrp & (1u << s))) p += sprintf(p, p == wrp + 1 ? "%d" : ",%d", s);
   *p++ = ']'; *p = 0;
+  char sb[96];
+  if (boot_report.magic == SB_BOOTINFO_MAGIC)
+    snprintf(sb, sizeof sb, "\"secure_boot\":{\"verified\":true,\"fw_version\":%lu,\"min_version\":%lu,\"check_ms\":%lu}",
+             (unsigned long)boot_report.fw_version, (unsigned long)boot_report.min_version, (unsigned long)boot_report.check_ms);
+  else
+    snprintf(sb, sizeof sb, "\"secure_boot\":{\"verified\":false}");
   printf("{\"type\":\"boot\",\"reset\":\"%s\",\"rdp\":\"%s\",\"bor\":\"%s\",\"wrp_sectors\":%s,"
-         "\"watchdog\":\"%s\",\"watchdog_ms\":%lu,\"demo_commands\":%s,%s}\r\n",
+         "\"watchdog\":\"%s\",\"watchdog_ms\":%lu,\"demo_commands\":%s,%s,%s}\r\n",
          reset_cause, rdp_s, bor_s[(opt >> 2) & 3u], wrp, (opt & FLASH_OPTCR_WDG_SW) ? "software" : "hardware",
-         (unsigned long)SEC_WATCHDOG_MS, SEC_DEMO_COMMANDS ? "true" : "false", sec_secret_json());
+         (unsigned long)SEC_WATCHDOG_MS, SEC_DEMO_COMMANDS ? "true" : "false", sec_secret_json(), sb);
 }
 
 /* IWDG: LSI (~32 kHz) / 32 = ~1 kHz counter, reload = timeout in ms (max 4095).

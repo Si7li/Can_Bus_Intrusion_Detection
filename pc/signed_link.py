@@ -6,12 +6,16 @@ mac field). The secret was written into the chip by `security_demo.py provision`
 keeps the PC's copy in keys/device_secret.key (not in git).
 
     v = Verifier()                 # loads keys/device_secret.key
-    verdict = v.check(text)        # "ok" | "forged" | "replayed" | "unsigned" | "no_key" | "not_json"
+    verdict = v.check(text)        # "ok" | "forged" | "replayed" | "unsigned" | "bootloader" | "no_key" | "not_json"
 
   ok        MAC correct and (boot, seq) newer than every line accepted before
   forged    MAC wrong: the line was changed or made up (or signed with another key)
   replayed  MAC correct but (boot, seq) not newer: a genuine old line sent again
   unsigned  the line has no MAC ("mac": null): the device secret is missing or erased (tamper)
+  bootloader  the secure bootloader's own line ("type":"secure_boot"): unsigned by design (the
+            bootloader does not use the device secret). Informational only: the trusted
+            statement is the application's signed boot line, which carries the verification
+            result ("secure_boot": {"verified": true, ...}).
 """
 
 import hashlib
@@ -46,7 +50,7 @@ class Verifier:
     def __init__(self, key: bytes | None = None):
         self.key = key if key is not None else load_key()
         self.last = (-1, -1)                         # newest (boot, seq) accepted
-        self.counts = {"ok": 0, "forged": 0, "replayed": 0, "unsigned": 0, "no_key": 0}
+        self.counts = {"ok": 0, "forged": 0, "replayed": 0, "unsigned": 0, "no_key": 0, "bootloader": 0}
 
     def check(self, text: str) -> str:
         text = text.strip()
@@ -55,7 +59,7 @@ class Verifier:
             return "not_json" if not text.startswith("{") else self._count("forged")   # JSON without mac field
         signed, mac = m.group(1) + "}", m.group(2)
         if mac is None:
-            return self._count("unsigned")
+            return self._count("bootloader" if text.startswith('{"type":"secure_boot"') else "unsigned")
         if self.key is None:
             return self._count("no_key")
         if not hmac.compare_digest(mac, mac_of(self.key, signed)):

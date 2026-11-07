@@ -456,6 +456,8 @@ cause and the protection settings it reads from the option bytes:
 | E1 | **On-chip entropy source** (no hardware RNG on the F446): LSI RC-oscillator jitter measured by TIM5 against the crystal clock, 4,096 samples → health tests → SHA-256 | `pc/entropy_check.py` (32,768 raw samples per setting) | **~2.8 bits of min-entropy per sample** (most-common-value: 2.88, predictor from the previous sample: 2.82); one sample every 32 µs; ~11,500 bits estimated per 256-bit seed |
 | N4 | **Signed serial link**: every JSON line carries `boot`, `seq` and an HMAC-SHA256 (128 bits) made with the device secret; the PC (`pc/signed_link.py`) checks it | `security_demo.py signing` | **PASS**: 6/6 real lines verified; one value changed → *forged*; made-up ALERT → *forged*; genuine line sent again → *replayed*; other key → *forged*. Live replay: 76/76 lines verified, detection unchanged. HMAC **220 µs** per line on the chip |
 | P2c | Power loss vs tamper | USB unplugged 5 s, then `status` | **PASS**: reported `missing` (power lost), not `erased` |
+| L1 | **Secure boot**: the bootloader starts only firmware whose header carries a valid ECDSA P-256 signature (key made and kept on the PC) and whose SHA-256 matches | `pc/secure_boot_demo.py` | **PASS**: valid image started; **1 bit changed** in the application → refused (hash mismatch); version raised in the header without re-signing → refused (bad signature); signed with **another key** → refused; **no header** → refused; check time 72 ms (signature) + 53 ms (SHA-256 of 137 KB) |
+| L1b | **Anti-rollback**: the bootloader remembers the newest version it accepted (log in flash sector 2) | `pc/secure_boot_demo.py` | **PASS**: an older but correctly signed version → refused |
 | P3 | **Brown-out reset level 3** (option byte BOR_LEV): the chip is held in reset below 2.70 V instead of running at a voltage where flash reads and code can go wrong (simple supply glitches) | option bytes read back by the firmware at boot | **set**: `bor: level3_2.70V` (not tested with a real supply dip) |
 
 - **Why 250 ms:** the IWDG runs on the internal LSI oscillator, which the datasheet only
@@ -553,6 +555,55 @@ cause and the protection settings it reads from the option bytes:
   - *The PC's copy of the key:* it sits in `keys/device_secret.key` (git-ignored, mode 600),
     so whoever controls the PC can sign lines too.
 
-Still to do: secure boot with an ECDSA signature (L1), write protection of the bootloader
-(L1c), read protection level 1 (P1, P1b). Level 2 is permanent (the board can never be
-reflashed or debugged again) and is not applied.
+### Secure boot: how it works
+Flash layout (`firmware/can_ids_fw/Core/Inc/secure_boot.h`):
+
+| Flash | Address | Content |
+|---|---|---|
+| Sectors 0–1 (32 KB) | 0x08000000 | Bootloader (8.5 KB) + firmware public key; to be write-protected (L1c) |
+| Sector 2 (16 KB) | 0x08008000 | Anti-rollback log: (version, ~version) pairs, only appended |
+| Sector 3 (16 KB) | 0x0800C000 | Image header: version, size, SHA-256 of the application, signature |
+| Sectors 4–7 (448 KB) | 0x08010000 | Application (the IDS) |
+
+- **Signing (PC, `pc/sign_firmware.py`):**
+  - `keygen` makes a P-256 key pair once. The private key stays in `keys/` (git-ignored); the
+    public key is compiled into the bootloader (`bootloader/inc/fw_pubkey.h`).
+  - `sign --version N` writes the header (magic, version, address, size, SHA-256 of the
+    application) and signs its first 64 bytes with ECDSA, 64-byte raw r‖s. The signature
+    covers the hash, so it covers the whole application.
+- **At every reset (`bootloader/src/main.c`, register-level, no HAL):**
+  1. clock to 168 MHz (internal oscillator);
+  2. check the header's signature with micro-ecc (`uECC_verify`);
+  3. hash the application;
+  4. compare its version with the anti-rollback log, and append it if newer;
+  5. check the application's vector table;
+  6. put every clock and peripheral it used back to the reset state;
+  7. move the vector table (VTOR) to 0x08010000, set the stack pointer and jump.
+
+  On any failure, the IDS is **not** started: the bootloader prints the reason every 2 s
+  and blinks LD2.
+- **Reporting:** the bootloader leaves its verdict in the last 16 bytes of RAM (both programs'
+  linker scripts stop 16 bytes short). The IDS reads it and reports it in its **signed** boot line:
+  `"secure_boot":{"verified":true,"fw_version":2,"min_version":2,"check_ms":125}`. The
+  bootloader's own serial line is unsigned (it does not use the device secret), so the
+  PC treats it as information only (`bootloader` verdict in `signed_link.py`).
+- **Cost:** about 0.13 s longer boot. The watchdog-reset demo now restarts in 351 ms instead of 251 ms.
+- **Design change from the handoff:** write protection goes on sectors 0–1 (bootloader), not
+  0–3. The header changes with every update, so protecting it would block updates.
+- **Bug found during bring-up:** the bootloader's serial line first arrived as zero bytes.
+  The baud-rate divider was 16 times too large (0x2D9 instead of 46): the bootloader was
+  sending at 57,600 baud. It was found by listening at several baud rates.
+- **Limits:**
+  - **Hash first, or signature first?** The signature is checked first, but an attacker can still
+    make the bootloader hash up to 448 KB (~0.2 s) before refusing. That is harmless.
+  - **The anti-rollback log is in ordinary flash.** Someone with SWD access can erase it
+    (sector 2) and so allow an older signed version again. Once read protection is on (P1),
+    SWD can no longer touch flash without erasing everything. Production chips use OTP
+    memory or fuses for this counter instead. The F446 has 512 bytes of OTP, not used
+    here because writing it is permanent.
+  - **The private key is the root of trust.** Anyone who copies `keys/fw_signing_key.pem` can
+    sign firmware. A real project keeps it in a hardware security module (HSM). It is not
+    encrypted with a passphrase here.
+
+Still to do: write protection of the bootloader (L1c), read protection level 1 (P1, P1b).
+Level 2 is permanent (the board can never be reflashed or debugged again) and is not applied.

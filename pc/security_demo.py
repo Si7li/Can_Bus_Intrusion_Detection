@@ -68,7 +68,10 @@ def describe_boot(ev: dict) -> str:
             f"write-protected sectors {ev['wrp_sectors'] or 'none'} | watchdog {ev['watchdog_ms']} ms | "
             f"demo commands {'on' if ev['demo_commands'] else 'off'} | device secret {ev.get('secret', '?')}"
             + (f" (id {ev['secret_id']})" if ev.get("secret_id") else "")
-            + (" [power was lost]" if ev.get("power_lost") else ""))
+            + (" [power was lost]" if ev.get("power_lost") else "")
+            + (f" | secure boot: verified, firmware version {ev['secure_boot']['fw_version']} "
+               f"(minimum {ev['secure_boot']['min_version']}, checked in {ev['secure_boot']['check_ms']} ms)"
+               if ev.get("secure_boot", {}).get("verified") else " | secure boot: NOT verified"))
 
 
 def log(test: str, passed: bool, detail: str):
@@ -243,7 +246,7 @@ def cmd_signing(s):
                               "if the chip already has a secret the PC does not know)")
         return
     restart()
-    lines = [t for _, t in read_lines(s, 4.0) if t.startswith("{")]
+    lines = [t for _, t in read_lines(s, 4.0) if t.startswith("{") and '"type":"secure_boot"' not in t]   # bootloader: unsigned by design
     v = Verifier(key)
     verdicts = [v.check(t) for t in lines]
     n_ok = verdicts.count("ok")
